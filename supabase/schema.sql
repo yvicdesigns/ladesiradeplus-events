@@ -19,8 +19,19 @@ do $$ begin
   create type user_role as enum ('user', 'admin');
 exception when duplicate_object then null; end $$;
 
--- ─── HELPER : is_admin() ─────────────────────────────────────
--- SECURITY DEFINER = bypass RLS → évite la récursion infinie
+-- ─── PROFILES ────────────────────────────────────────────────
+-- Créé EN PREMIER car is_admin() le référence
+create table if not exists profiles (
+  id          uuid primary key references auth.users(id) on delete cascade,
+  first_name  text,
+  last_name   text,
+  phone       text,
+  role        user_role default 'user',
+  created_at  timestamptz default now()
+);
+
+-- ─── HELPER is_admin() ───────────────────────────────────────
+-- Créé APRÈS profiles (SECURITY DEFINER bypass RLS, évite récursion)
 create or replace function is_admin()
 returns boolean
 language sql
@@ -34,15 +45,7 @@ as $$
   );
 $$;
 
--- ─── PROFILES ────────────────────────────────────────────────
-create table if not exists profiles (
-  id          uuid primary key references auth.users(id) on delete cascade,
-  first_name  text,
-  last_name   text,
-  phone       text,
-  role        user_role default 'user',
-  created_at  timestamptz default now()
-);
+-- RLS profiles
 alter table profiles enable row level security;
 
 drop policy if exists "Profiles visible by owner" on profiles;
@@ -55,9 +58,7 @@ create policy "Profiles updatable by owner"
   on profiles for update
   using (auth.uid() = id);
 
-drop policy if exists "Profiles readable by admin" on profiles;
-
--- Auto-create profile on signup
+-- Trigger : auto-créer profile à l'inscription
 create or replace function handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -71,6 +72,7 @@ begin
   return new;
 end;
 $$;
+
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
