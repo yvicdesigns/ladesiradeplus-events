@@ -1,7 +1,6 @@
 -- ============================================================
 -- LA DÉSIRADE ÉVÉNEMENTS — Schéma Supabase
 -- Coller et exécuter dans : Supabase Dashboard > SQL Editor
--- Peut être ré-exécuté sans erreur (idempotent)
 -- ============================================================
 
 -- Extensions
@@ -20,6 +19,21 @@ do $$ begin
   create type user_role as enum ('user', 'admin');
 exception when duplicate_object then null; end $$;
 
+-- ─── HELPER : is_admin() ─────────────────────────────────────
+-- SECURITY DEFINER = bypass RLS → évite la récursion infinie
+create or replace function is_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from profiles
+    where id = auth.uid() and role = 'admin'
+  );
+$$;
+
 -- ─── PROFILES ────────────────────────────────────────────────
 create table if not exists profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
@@ -32,15 +46,16 @@ create table if not exists profiles (
 alter table profiles enable row level security;
 
 drop policy if exists "Profiles visible by owner" on profiles;
-create policy "Profiles visible by owner" on profiles for select using (auth.uid() = id);
+create policy "Profiles visible by owner"
+  on profiles for select
+  using (auth.uid() = id or is_admin());
 
 drop policy if exists "Profiles updatable by owner" on profiles;
-create policy "Profiles updatable by owner" on profiles for update using (auth.uid() = id);
+create policy "Profiles updatable by owner"
+  on profiles for update
+  using (auth.uid() = id);
 
 drop policy if exists "Profiles readable by admin" on profiles;
-create policy "Profiles readable by admin" on profiles for select using (
-  exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin')
-);
 
 -- Auto-create profile on signup
 create or replace function handle_new_user()
@@ -76,12 +91,12 @@ create table if not exists categories (
 alter table categories enable row level security;
 
 drop policy if exists "Categories readable by all" on categories;
-create policy "Categories readable by all" on categories for select using (true);
+create policy "Categories readable by all"
+  on categories for select using (true);
 
 drop policy if exists "Categories writable by admin" on categories;
-create policy "Categories writable by admin" on categories for all using (
-  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
-);
+create policy "Categories writable by admin"
+  on categories for all using (is_admin());
 
 -- ─── ARTICLES ────────────────────────────────────────────────
 create table if not exists articles (
@@ -104,12 +119,12 @@ create table if not exists articles (
 alter table articles enable row level security;
 
 drop policy if exists "Articles readable by all" on articles;
-create policy "Articles readable by all" on articles for select using (true);
+create policy "Articles readable by all"
+  on articles for select using (true);
 
 drop policy if exists "Articles writable by admin" on articles;
-create policy "Articles writable by admin" on articles for all using (
-  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
-);
+create policy "Articles writable by admin"
+  on articles for all using (is_admin());
 
 -- ─── ORDERS ──────────────────────────────────────────────────
 create table if not exists orders (
@@ -128,18 +143,17 @@ create table if not exists orders (
 alter table orders enable row level security;
 
 drop policy if exists "Orders readable by owner or admin" on orders;
-create policy "Orders readable by owner or admin" on orders for select using (
-  auth.uid() = user_id or
-  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
-);
+create policy "Orders readable by owner or admin"
+  on orders for select
+  using (auth.uid() = user_id or is_admin());
 
 drop policy if exists "Orders insertable by anyone" on orders;
-create policy "Orders insertable by anyone" on orders for insert with check (true);
+create policy "Orders insertable by anyone"
+  on orders for insert with check (true);
 
 drop policy if exists "Orders updatable by admin" on orders;
-create policy "Orders updatable by admin" on orders for update using (
-  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
-);
+create policy "Orders updatable by admin"
+  on orders for update using (is_admin());
 
 -- ─── ORDER ITEMS ─────────────────────────────────────────────
 create table if not exists order_items (
@@ -153,18 +167,19 @@ create table if not exists order_items (
 alter table order_items enable row level security;
 
 drop policy if exists "Order items readable by order owner or admin" on order_items;
-create policy "Order items readable by order owner or admin" on order_items for select using (
-  exists (
-    select 1 from orders o
-    where o.id = order_id and (
-      o.user_id = auth.uid() or
-      exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin')
+create policy "Order items readable by order owner or admin"
+  on order_items for select
+  using (
+    exists (
+      select 1 from orders o
+      where o.id = order_id
+        and (o.user_id = auth.uid() or is_admin())
     )
-  )
-);
+  );
 
 drop policy if exists "Order items insertable by anyone" on order_items;
-create policy "Order items insertable by anyone" on order_items for insert with check (true);
+create policy "Order items insertable by anyone"
+  on order_items for insert with check (true);
 
 -- ─── FAVORITES ───────────────────────────────────────────────
 create table if not exists favorites (
@@ -177,7 +192,8 @@ create table if not exists favorites (
 alter table favorites enable row level security;
 
 drop policy if exists "Favorites by owner" on favorites;
-create policy "Favorites by owner" on favorites for all using (auth.uid() = user_id);
+create policy "Favorites by owner"
+  on favorites for all using (auth.uid() = user_id);
 
 -- ─── SETTINGS ────────────────────────────────────────────────
 create table if not exists settings (
@@ -187,12 +203,12 @@ create table if not exists settings (
 alter table settings enable row level security;
 
 drop policy if exists "Settings readable by all" on settings;
-create policy "Settings readable by all" on settings for select using (true);
+create policy "Settings readable by all"
+  on settings for select using (true);
 
 drop policy if exists "Settings writable by admin" on settings;
-create policy "Settings writable by admin" on settings for all using (
-  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
-);
+create policy "Settings writable by admin"
+  on settings for all using (is_admin());
 
 -- Default settings
 insert into settings (key, value) values
