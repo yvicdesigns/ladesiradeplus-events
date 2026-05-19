@@ -32,16 +32,30 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  if (pathname.startsWith("/admin") && !user) {
-    return NextResponse.redirect(new URL("/connexion?next=/admin", request.url));
+  // Protect /admin — must be logged in AND have role = admin
+  if (pathname.startsWith("/admin")) {
+    if (!user) {
+      return NextResponse.redirect(new URL("/connexion?next=/admin", request.url));
+    }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile || profile.role !== "admin") {
+      return NextResponse.redirect(new URL("/?access=denied", request.url));
+    }
   }
 
+  // Protect /mon-espace — must be logged in
   if (pathname.startsWith("/mon-espace") && !user) {
     return NextResponse.redirect(
       new URL("/connexion?next=/mon-espace", request.url)
     );
   }
 
+  // Redirect logged-in users away from auth pages
   if ((pathname === "/connexion" || pathname === "/inscription") && user) {
     return NextResponse.redirect(new URL("/mon-espace", request.url));
   }
