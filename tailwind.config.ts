@@ -11,10 +11,12 @@ const config: Config = {
     extend: {
       colors: {
         gold: {
-          DEFAULT: "#C9A84C",
-          light: "#E8C96D",
-          dark: "#A07830",
+          DEFAULT: "#F97316",
+          light: "#FB923C",
+          dark: "#EA580C",
         },
+        "brand-red": "#E63946",
+        "brand-green": "#22C55E",
         charcoal: {
           DEFAULT: "rgb(var(--charcoal) / <alpha-value>)",
           soft: "rgb(var(--charcoal-soft) / <alpha-value>)",
@@ -29,11 +31,11 @@ const config: Config = {
         vibes: ["var(--font-great-vibes)", "cursive"],
       },
       backgroundImage: {
-        "gold-gradient": "linear-gradient(135deg, #C9A84C 0%, #E8C96D 50%, #A07830 100%)",
+        "gold-gradient": "linear-gradient(135deg, #EA580C 0%, #F97316 50%, #FB923C 100%)",
       },
       boxShadow: {
-        gold: "0 0 30px rgba(201, 168, 76, 0.3)",
-        "gold-lg": "0 0 60px rgba(201, 168, 76, 0.4)",
+        gold: "0 0 30px rgba(249, 115, 22, 0.35)",
+        "gold-lg": "0 0 60px rgba(249, 115, 22, 0.45)",
       },
       animation: {
         "float": "float 3s ease-in-out infinite",
