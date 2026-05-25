@@ -11,6 +11,7 @@ import {
 import { formatPrice } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { Article, Category, Order, OrderStatus, ServiceType } from "@/lib/supabase/types";
+import { ImageUpload } from "@/components/ui/ImageUpload";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -265,20 +266,14 @@ function ArticleModal({
               />
             </div>
 
-            {/* Image URL */}
+            {/* Image */}
             <div>
-              <label className="text-xs text-gray-400 mb-1.5 block font-medium">URL de l&apos;image</label>
-              <input
+              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Image</label>
+              <ImageUpload
                 value={form.image_url}
-                onChange={(e) => set("image_url", e.target.value)}
-                placeholder="https://images.unsplash.com/photo-..."
-                className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+                onChange={(url) => set("image_url", url)}
+                folder="articles"
               />
-              {form.image_url && (
-                <div className="mt-2 relative w-full h-28 rounded-xl overflow-hidden bg-charcoal-soft">
-                  <Image src={form.image_url} alt="preview" fill className="object-cover" sizes="400px" />
-                </div>
-              )}
             </div>
 
             {/* Toggles */}
@@ -381,12 +376,13 @@ type CategoryForm = {
   service: ServiceType;
   slug: string;
   icon: string;
+  image_url: string;
   sort_order: number;
 };
 
 const EMPTY_CAT_FORM: CategoryForm = {
   name_fr: "", name_en: "", service: "decoration",
-  slug: "", icon: "📦", sort_order: 0,
+  slug: "", icon: "📦", image_url: "", sort_order: 0,
 };
 
 const ICON_LIST: Record<ServiceType, string[]> = {
@@ -413,7 +409,8 @@ function CategoryModal({
       setForm({
         name_fr: category.name_fr, name_en: category.name_en,
         service: category.service, slug: category.slug,
-        icon: category.icon ?? "📦", sort_order: category.sort_order ?? 0,
+        icon: category.icon ?? "📦", image_url: category.image_url ?? "",
+        sort_order: category.sort_order ?? 0,
       });
     } else {
       setForm(EMPTY_CAT_FORM);
@@ -434,6 +431,7 @@ function CategoryModal({
       name_en: form.name_en.trim() || form.name_fr.trim(),
       service: form.service,
       icon: form.icon.trim() || "📦",
+      image_url: form.image_url || null,
       sort_order: form.sort_order,
     };
 
@@ -538,14 +536,25 @@ function CategoryModal({
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Ordre d&apos;affichage</label>
+                <input
+                  type="number" min={0}
+                  value={form.sort_order || ""}
+                  onChange={(e) => setF("sort_order", Number(e.target.value))}
+                  placeholder="0"
+                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Ordre d&apos;affichage</label>
-              <input
-                type="number" min={0}
-                value={form.sort_order || ""}
-                onChange={(e) => setF("sort_order", Number(e.target.value))}
-                placeholder="0"
-                className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Image de la catégorie</label>
+              <ImageUpload
+                value={form.image_url}
+                onChange={(url) => setF("image_url", url)}
+                folder="categories"
               />
             </div>
           </div>
