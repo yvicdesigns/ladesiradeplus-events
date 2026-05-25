@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ShoppingBag, Globe, ChevronDown } from "lucide-react";
 import { useCartStore } from "@/store/cart";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 const services = [
   { href: "/logistique", label_fr: "Logistique", label_en: "Logistics", icon: "🏗️", desc_fr: "Chapiteaux, tables, sono, scène" },
@@ -130,10 +131,13 @@ export function Navbar() {
 
             {/* Right actions */}
             <div className="flex items-center gap-2">
+              {/* Theme toggle */}
+              <ThemeToggle />
+
               {/* Language toggle */}
               <button
                 onClick={() => setLocale(locale === "fr" ? "en" : "fr")}
-                className="hidden sm:flex items-center gap-1 text-xs text-gray-400 hover:text-gold transition-colors px-2 py-1 rounded-full border border-gray-700 hover:border-gold"
+                className="hidden sm:flex items-center gap-1 text-xs text-gray-400 hover:text-gold transition-colors px-2 py-1 rounded-full border border-gold/20 hover:border-gold"
               >
                 <Globe className="w-3 h-3" />
                 <span>{locale === "fr" ? "🇫🇷" : "🇬🇧"}</span>
@@ -250,13 +254,16 @@ export function Navbar() {
               >
                 {t("Passer une commande", "Place an order")}
               </Link>
-              <button
-                onClick={() => setLocale(locale === "fr" ? "en" : "fr")}
-                className="flex items-center gap-2 text-sm text-gray-400 hover:text-gold transition-colors mx-auto"
-              >
-                <Globe className="w-4 h-4" />
-                {locale === "fr" ? "🇫🇷 Français" : "🇬🇧 English"}
-              </button>
+              <div className="flex items-center justify-center gap-4">
+                <button
+                  onClick={() => setLocale(locale === "fr" ? "en" : "fr")}
+                  className="flex items-center gap-2 text-sm text-gray-400 hover:text-gold transition-colors"
+                >
+                  <Globe className="w-4 h-4" />
+                  {locale === "fr" ? "🇫🇷 Français" : "🇬🇧 English"}
+                </button>
+                <ThemeToggle />
+              </div>
             </div>
           </motion.div>
         )}

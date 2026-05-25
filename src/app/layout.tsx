@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/Footer";
 import { CustomCursor } from "@/components/ui/CustomCursor";
 import { WhatsAppFloat } from "@/components/ui/WhatsAppFloat";
 import { CartSidebar } from "@/components/cart/CartSidebar";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -53,14 +54,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${playfair.variable} ${inter.variable} ${greatVibes.variable}`}>
+    <html lang="fr" className={`${playfair.variable} ${inter.variable} ${greatVibes.variable}`} suppressHydrationWarning>
       <body className="bg-charcoal-deep text-off-white antialiased">
-        <CustomCursor />
-        <Navbar />
-        <main>{children}</main>
-        <Footer />
-        <CartSidebar />
-        <WhatsAppFloat />
+        <ThemeProvider>
+          <CustomCursor />
+          <Navbar />
+          <main>{children}</main>
+          <Footer />
+          <CartSidebar />
+          <WhatsAppFloat />
+        </ThemeProvider>
       </body>
     </html>
   );

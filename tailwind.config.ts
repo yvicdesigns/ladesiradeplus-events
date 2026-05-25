@@ -16,12 +16,12 @@ const config: Config = {
           dark: "#A07830",
         },
         charcoal: {
-          DEFAULT: "#1A1A1A",
-          soft: "#2A2A2A",
-          deep: "#0A0A0A",
+          DEFAULT: "rgb(var(--charcoal) / <alpha-value>)",
+          soft: "rgb(var(--charcoal-soft) / <alpha-value>)",
+          deep: "rgb(var(--charcoal-deep) / <alpha-value>)",
         },
-        ivory: "#F0EBE0",
-        "off-white": "#FAFAFA",
+        ivory: "rgb(var(--ivory) / <alpha-value>)",
+        "off-white": "rgb(var(--off-white) / <alpha-value>)",
       },
       fontFamily: {
         playfair: ["var(--font-playfair)", "Georgia", "serif"],
