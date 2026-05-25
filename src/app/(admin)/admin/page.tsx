@@ -705,12 +705,20 @@ export default function AdminPage() {
   const openEditCat   = (c: Category) => { setEditingCat(c); setCatModalOpen(true); };
 
   const toggleArticle = (id: string) =>
-    setSelectedArticles((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+    setSelectedArticles((prev) => {
+      const s = new Set(prev);
+      if (s.has(id)) { s.delete(id); } else { s.add(id); }
+      return s;
+    });
   const toggleAllArticles = (list: Article[]) =>
     setSelectedArticles(selectedArticles.size === list.length ? new Set() : new Set(list.map((a) => a.id)));
 
   const toggleCat = (id: string) =>
-    setSelectedCats((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+    setSelectedCats((prev) => {
+      const s = new Set(prev);
+      if (s.has(id)) { s.delete(id); } else { s.add(id); }
+      return s;
+    });
   const toggleAllCats = (list: Category[]) =>
     setSelectedCats(selectedCats.size === list.length ? new Set() : new Set(list.map((c) => c.id)));
 
