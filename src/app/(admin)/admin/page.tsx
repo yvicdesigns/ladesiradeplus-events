@@ -62,11 +62,12 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); onChange(); }}
-      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-        checked
-          ? "bg-gold border-gold"
-          : "border-gray-300 dark:border-gray-600 hover:border-gold bg-white dark:bg-charcoal-soft"
-      }`}
+      style={{
+        width: 20, height: 20, borderRadius: 5, border: checked ? "none" : "2px solid #9ca3af",
+        background: checked ? "#F97316" : "rgb(var(--charcoal-soft))",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0, cursor: "pointer", transition: "all 0.15s",
+      }}
     >
       {checked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
     </button>
