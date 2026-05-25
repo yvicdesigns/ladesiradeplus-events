@@ -3,7 +3,7 @@ import { Playfair_Display, Inter, Great_Vibes } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { CustomCursor } from "@/components/ui/CustomCursor";
+// CustomCursor removed — using native cursor
 import { WhatsAppFloat } from "@/components/ui/WhatsAppFloat";
 import { CartSidebar } from "@/components/cart/CartSidebar";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
@@ -57,7 +57,6 @@ export default function RootLayout({
     <html lang="fr" className={`${playfair.variable} ${inter.variable} ${greatVibes.variable}`} suppressHydrationWarning>
       <body className="bg-charcoal-deep text-off-white antialiased">
         <ThemeProvider>
-          <CustomCursor />
           <Navbar />
           <main>{children}</main>
           <Footer />

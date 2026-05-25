@@ -899,14 +899,14 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => { setSelectModeArticles(!selectModeArticles); setSelectedArticles(new Set()); }}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold border transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all ${
                       selectModeArticles
-                        ? "bg-red-500/10 border-red-400 text-red-400"
-                        : "border-gold/30 text-gray-500 hover:border-gold hover:text-gold"
+                        ? "bg-red-500 text-white"
+                        : "bg-charcoal-soft text-off-white border border-black/10"
                     }`}
                   >
                     <CheckSquare className="w-4 h-4" />
-                    {selectModeArticles ? "Annuler" : "Sélectionner"}
+                    {selectModeArticles ? "✕ Annuler" : "Sélectionner"}
                   </button>
                   <button onClick={openCreate} className="btn-gold flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold">
                     <Plus className="w-4 h-4" /> Nouvel article
@@ -1072,14 +1072,14 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => { setSelectModeCats(!selectModeCats); setSelectedCats(new Set()); }}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold border transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold transition-all ${
                       selectModeCats
-                        ? "bg-red-500/10 border-red-400 text-red-400"
-                        : "border-gold/30 text-gray-500 hover:border-gold hover:text-gold"
+                        ? "bg-red-500 text-white"
+                        : "bg-charcoal-soft text-off-white border border-black/10"
                     }`}
                   >
                     <CheckSquare className="w-4 h-4" />
-                    {selectModeCats ? "Annuler" : "Sélectionner"}
+                    {selectModeCats ? "✕ Annuler" : "Sélectionner"}
                   </button>
                   <button onClick={openCreateCat} className="btn-gold flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold">
                     <Plus className="w-4 h-4" /> Nouvelle catégorie
