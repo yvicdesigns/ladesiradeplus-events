@@ -6,7 +6,7 @@ import Image from "next/image";
 import {
   LayoutDashboard, Package, ShoppingBag, BarChart3, Settings,
   Plus, Edit3, Trash2, MessageCircle, TrendingUp, Users,
-  DollarSign, RefreshCw, X, Save, AlertTriangle, Check,
+  DollarSign, RefreshCw, X, Save, AlertTriangle, Check, Tag,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -14,7 +14,7 @@ import type { Article, Category, Order, OrderStatus, ServiceType } from "@/lib/s
 
 // ─── Types ───────────────────────────────────────────────────
 
-type AdminTab = "dashboard" | "catalogue" | "orders" | "stats" | "settings";
+type AdminTab = "dashboard" | "catalogue" | "categories" | "orders" | "stats" | "settings";
 
 type ArticleForm = {
   name_fr: string;
@@ -50,11 +50,12 @@ const serviceLabels: Record<ServiceType, string> = {
 };
 
 const tabs: { key: AdminTab; label: string; icon: React.ElementType }[] = [
-  { key: "dashboard", label: "Dashboard",   icon: LayoutDashboard },
-  { key: "catalogue", label: "Catalogue",   icon: Package },
-  { key: "orders",    label: "Commandes",   icon: ShoppingBag },
-  { key: "stats",     label: "Statistiques",icon: BarChart3 },
-  { key: "settings",  label: "Paramètres",  icon: Settings },
+  { key: "dashboard",  label: "Dashboard",   icon: LayoutDashboard },
+  { key: "catalogue",  label: "Catalogue",   icon: Package },
+  { key: "categories", label: "Catégories",  icon: Tag },
+  { key: "orders",     label: "Commandes",   icon: ShoppingBag },
+  { key: "stats",      label: "Statistiques",icon: BarChart3 },
+  { key: "settings",   label: "Paramètres",  icon: Settings },
 ];
 
 function slugify(str: string) {
@@ -372,6 +373,233 @@ function DeleteConfirm({
   );
 }
 
+// ─── Category Modal ───────────────────────────────────────────
+
+type CategoryForm = {
+  name_fr: string;
+  name_en: string;
+  service: ServiceType;
+  slug: string;
+  icon: string;
+  sort_order: number;
+};
+
+const EMPTY_CAT_FORM: CategoryForm = {
+  name_fr: "", name_en: "", service: "decoration",
+  slug: "", icon: "📦", sort_order: 0,
+};
+
+function CategoryModal({
+  open, category, onClose, onSaved,
+}: {
+  open: boolean;
+  category: Category | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const supabase = createClient();
+  const [form, setForm] = useState<CategoryForm>(EMPTY_CAT_FORM);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (category) {
+      setForm({
+        name_fr: category.name_fr, name_en: category.name_en,
+        service: category.service, slug: category.slug,
+        icon: category.icon ?? "📦", sort_order: category.sort_order ?? 0,
+      });
+    } else {
+      setForm(EMPTY_CAT_FORM);
+    }
+    setError(null);
+  }, [category, open]);
+
+  const setF = (k: keyof CategoryForm, v: CategoryForm[keyof CategoryForm]) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSave = async () => {
+    if (!form.name_fr.trim()) { setError("Le nom en français est requis."); return; }
+    setSaving(true); setError(null);
+
+    const autoSlug = form.slug.trim() || slugify(form.name_fr) + "-" + Date.now();
+    const payload = {
+      name_fr: form.name_fr.trim(),
+      name_en: form.name_en.trim() || form.name_fr.trim(),
+      service: form.service,
+      icon: form.icon.trim() || "📦",
+      sort_order: form.sort_order,
+    };
+
+    let err;
+    if (category) {
+      ({ error: err } = await supabase.from("categories").update(payload).eq("id", category.id));
+    } else {
+      ({ error: err } = await supabase.from("categories").insert({ ...payload, slug: autoSlug }));
+    }
+
+    setSaving(false);
+    if (err) { setError(err.message); return; }
+    onSaved();
+    onClose();
+  };
+
+  if (!open) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-charcoal-deep/80 backdrop-blur-sm flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          onClick={(e) => e.stopPropagation()}
+          className="bg-charcoal border border-gold/20 rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+        >
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gold/10 sticky top-0 bg-charcoal z-10">
+            <h2 className="font-playfair text-lg font-bold text-off-white">
+              {category ? "Modifier la catégorie" : "Nouvelle catégorie"}
+            </h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-off-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-6 space-y-4">
+            {error && (
+              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <p className="text-sm text-red-400">{error}</p>
+              </div>
+            )}
+
+            <div>
+              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Service *</label>
+              <select
+                value={form.service}
+                onChange={(e) => setF("service", e.target.value as ServiceType)}
+                className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white outline-none"
+              >
+                {Object.entries(serviceLabels).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-4 gap-3">
+              <div className="col-span-1">
+                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Icône</label>
+                <input
+                  value={form.icon}
+                  onChange={(e) => setF("icon", e.target.value)}
+                  maxLength={4}
+                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-center text-off-white outline-none transition-colors"
+                />
+              </div>
+              <div className="col-span-3">
+                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Nom français *</label>
+                <input
+                  value={form.name_fr}
+                  onChange={(e) => setF("name_fr", e.target.value)}
+                  placeholder="Arches & Structures"
+                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Nom anglais</label>
+              <input
+                value={form.name_en}
+                onChange={(e) => setF("name_en", e.target.value)}
+                placeholder="Arches & Structures"
+                className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Ordre d&apos;affichage</label>
+              <input
+                type="number" min={0}
+                value={form.sort_order || ""}
+                onChange={(e) => setF("sort_order", Number(e.target.value))}
+                placeholder="0"
+                className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+              />
+            </div>
+          </div>
+
+          <div className="px-6 py-4 border-t border-gold/10 flex items-center justify-end gap-3 sticky bottom-0 bg-charcoal">
+            <button
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-full text-sm text-gray-400 hover:text-off-white border border-gold/20 hover:border-gold/40 transition-all"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="btn-gold flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold disabled:opacity-60"
+            >
+              {saving ? (
+                <span className="w-4 h-4 border-2 border-charcoal-deep/30 border-t-charcoal-deep rounded-full animate-spin" />
+              ) : <Save className="w-4 h-4" />}
+              {category ? "Enregistrer" : "Créer la catégorie"}
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+function DeleteCategoryConfirm({
+  category, onCancel, onConfirm, deleting,
+}: {
+  category: Category;
+  onCancel: () => void;
+  onConfirm: () => void;
+  deleting: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      className="fixed inset-0 z-50 bg-charcoal-deep/80 backdrop-blur-sm flex items-center justify-center p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
+        className="bg-charcoal border border-red-500/30 rounded-2xl p-6 max-w-sm w-full"
+      >
+        <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4">
+          <Trash2 className="w-6 h-6 text-red-400" />
+        </div>
+        <h3 className="font-playfair text-lg font-bold text-off-white text-center mb-2">Supprimer la catégorie ?</h3>
+        <p className="text-sm text-gray-400 text-center mb-1">
+          <strong className="text-off-white">{category.icon} {category.name_fr}</strong>
+        </p>
+        <p className="text-xs text-gray-500 text-center mb-6">Les articles liés perdront leur catégorie.</p>
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="flex-1 py-2.5 rounded-full border border-gold/20 text-sm text-gray-400 hover:text-off-white transition-colors">
+            Annuler
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={deleting}
+            className="flex-1 py-2.5 rounded-full bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {deleting ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Supprimer
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────
 
 export default function AdminPage() {
@@ -387,6 +615,13 @@ export default function AdminPage() {
   const [deleteLoading, setDeleteLoading]   = useState(false);
   const [savedBanner, setSavedBanner]   = useState(false);
   const [serviceFilter, setServiceFilter] = useState<ServiceType | "all">("all");
+
+  // Category CRUD state
+  const [catModalOpen, setCatModalOpen]   = useState(false);
+  const [editingCat, setEditingCat]       = useState<Category | null>(null);
+  const [deletingCat, setDeletingCat]     = useState<Category | null>(null);
+  const [deleteCatLoading, setDeleteCatLoading] = useState(false);
+  const [catServiceFilter, setCatServiceFilter] = useState<ServiceType | "all">("all");
 
   const supabase = createClient();
 
@@ -409,7 +644,9 @@ export default function AdminPage() {
   }, [supabase]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
-  useEffect(() => { if (activeTab === "catalogue") fetchCatalogue(); }, [activeTab, fetchCatalogue]);
+  useEffect(() => {
+    if (activeTab === "catalogue" || activeTab === "categories") fetchCatalogue();
+  }, [activeTab, fetchCatalogue]);
 
   const updateStatus = async (id: string, status: string) => {
     const s = status as OrderStatus;
@@ -426,8 +663,19 @@ export default function AdminPage() {
     setDeletingArticle(null);
   };
 
+  const handleDeleteCat = async () => {
+    if (!deletingCat) return;
+    setDeleteCatLoading(true);
+    await supabase.from("categories").delete().eq("id", deletingCat.id);
+    setCategories((prev) => prev.filter((c) => c.id !== deletingCat.id));
+    setDeleteCatLoading(false);
+    setDeletingCat(null);
+  };
+
   const openCreate = () => { setEditingArticle(null); setModalOpen(true); };
   const openEdit   = (a: Article) => { setEditingArticle(a); setModalOpen(true); };
+  const openCreateCat = () => { setEditingCat(null); setCatModalOpen(true); };
+  const openEditCat   = (c: Category) => { setEditingCat(c); setCatModalOpen(true); };
 
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount ?? 0), 0);
   const pendingCount = orders.filter((o) => o.status === "pending").length;
@@ -458,6 +706,20 @@ export default function AdminPage() {
           onCancel={() => setDeletingArticle(null)}
           onConfirm={handleDelete}
           deleting={deleteLoading}
+        />
+      )}
+      <CategoryModal
+        open={catModalOpen}
+        category={editingCat}
+        onClose={() => setCatModalOpen(false)}
+        onSaved={fetchCatalogue}
+      />
+      {deletingCat && (
+        <DeleteCategoryConfirm
+          category={deletingCat}
+          onCancel={() => setDeletingCat(null)}
+          onConfirm={handleDeleteCat}
+          deleting={deleteCatLoading}
         />
       )}
 
@@ -692,6 +954,103 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {/* ── Categories ── */}
+          {activeTab === "categories" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h1 className="font-playfair text-2xl font-bold text-off-white">Catégories</h1>
+                  <p className="text-sm text-gray-400 mt-0.5">{categories.length} catégorie{categories.length > 1 ? "s" : ""}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={fetchCatalogue} className="text-gray-400 hover:text-gold transition-colors p-2">
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                  <button onClick={openCreateCat} className="btn-gold flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold">
+                    <Plus className="w-4 h-4" /> Nouvelle catégorie
+                  </button>
+                </div>
+              </div>
+
+              {/* Service filter */}
+              <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+                {(["all", "logistique", "traiteur", "decoration"] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setCatServiceFilter(s)}
+                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      catServiceFilter === s
+                        ? "bg-gold text-charcoal-deep"
+                        : "border border-gold/20 text-gray-400 hover:text-gold"
+                    }`}
+                  >
+                    {s === "all" ? "Toutes" : serviceLabels[s]}
+                  </button>
+                ))}
+              </div>
+
+              {loadingArticles ? (
+                <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-16 bg-charcoal-soft rounded-xl animate-pulse" />)}</div>
+              ) : (() => {
+                const filtered = catServiceFilter === "all"
+                  ? categories
+                  : categories.filter((c) => c.service === catServiceFilter);
+                return filtered.length === 0 ? (
+                  <div className="glass-card rounded-2xl p-12 text-center">
+                    <Tag className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-400 mb-4">Aucune catégorie pour le moment</p>
+                    <button onClick={openCreateCat} className="btn-gold px-6 py-2.5 rounded-full text-sm font-semibold">
+                      Créer la première catégorie
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filtered.map((cat) => {
+                      const articleCount = articles.filter((a) => a.category_id === cat.id).length;
+                      return (
+                        <motion.div
+                          key={cat.id}
+                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                          className="glass-card rounded-2xl p-4 hover-gold-border group"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl">{cat.icon}</span>
+                              <div>
+                                <p className="text-off-white text-sm font-semibold">{cat.name_fr}</p>
+                                <p className="text-xs text-gray-500">{serviceLabels[cat.service]}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => openEditCat(cat)}
+                                className="w-7 h-7 rounded-lg border border-gold/20 hover:border-gold hover:text-gold text-gray-400 flex items-center justify-center transition-all"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => setDeletingCat(cat)}
+                                className="w-7 h-7 rounded-lg border border-red-500/20 hover:border-red-500 hover:text-red-400 text-gray-400 flex items-center justify-center transition-all"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gold/10">
+                            <span className="text-xs text-gray-500">
+                              {articleCount} article{articleCount > 1 ? "s" : ""}
+                            </span>
+                            <span className="text-xs text-gray-600">ordre : {cat.sort_order}</span>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </motion.div>
           )}
 
