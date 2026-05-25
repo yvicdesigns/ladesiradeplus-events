@@ -36,6 +36,8 @@ const config: Config = {
       boxShadow: {
         gold: "0 0 30px rgba(249, 115, 22, 0.35)",
         "gold-lg": "0 0 60px rgba(249, 115, 22, 0.45)",
+        card: "0 2px 12px rgba(0, 0, 0, 0.08)",
+        "card-lg": "0 8px 32px rgba(0, 0, 0, 0.12)",
       },
       animation: {
         "float": "float 3s ease-in-out infinite",

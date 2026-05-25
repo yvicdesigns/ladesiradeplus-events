@@ -4,13 +4,14 @@
 
 /* ── Light mode (default) ── */
 :root {
-  --charcoal-deep: 250 250 250;
-  --charcoal:      255 255 255;
-  --charcoal-soft: 243 244 246;
-  --off-white:     17 24 39;
-  --ivory:         249 250 251;
+  /* fond légèrement teinté → les cartes blanches ressortent */
+  --charcoal-deep: 241 237 229;   /* warm sand #F1EDE5 */
+  --charcoal:      255 255 255;   /* cartes blanches */
+  --charcoal-soft: 228 222 212;   /* inputs, fond de champ #E4DED4 */
+  --off-white:     15 23 42;      /* texte quasi-noir #0F172A */
+  --ivory:         249 246 240;
 
-  --brand:         249 115 22;   /* orange */
+  --brand:         249 115 22;
   --brand-red:     230 57 70;
   --brand-green:   34 197 94;
 }
@@ -92,27 +93,27 @@ body {
 
 /* ── Glass cards ── */
 .glass-card {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(249, 115, 22, 0.15);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
 }
 .dark .glass-card {
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(249, 115, 22, 0.12);
+  box-shadow: none;
 }
 
 .glass-card-dark,
 .glass-card-charcoal {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(249, 115, 22, 0.15);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 .dark .glass-card-dark,
 .dark .glass-card-charcoal {
   background: rgba(26, 26, 26, 0.92);
   border-color: rgba(249, 115, 22, 0.1);
+  box-shadow: none;
 }
 
 /* ── Primary button ── */
@@ -184,12 +185,15 @@ body {
 
 /* ── Hover border ── */
 .hover-gold-border {
-  border: 1px solid transparent;
+  border: 1px solid rgba(0, 0, 0, 0.07);
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.dark .hover-gold-border {
+  border-color: transparent;
 }
 .hover-gold-border:hover {
   border-color: #F97316;
-  box-shadow: 0 0 20px rgba(249, 115, 22, 0.15);
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.2);
 }
 
 /* ── Particle canvas ── */
