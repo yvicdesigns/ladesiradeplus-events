@@ -646,6 +646,8 @@ export default function AdminPage() {
   const [selectedArticles, setSelectedArticles] = useState<Set<string>>(new Set());
   const [selectedCats, setSelectedCats]         = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting]         = useState(false);
+  const [selectModeArticles, setSelectModeArticles] = useState(false);
+  const [selectModeCats, setSelectModeCats]         = useState(false);
 
   const supabase = createClient();
 
@@ -894,6 +896,17 @@ export default function AdminPage() {
                   <button onClick={fetchCatalogue} className="text-gray-400 hover:text-gold transition-colors p-2">
                     <RefreshCw className="w-4 h-4" />
                   </button>
+                  <button
+                    onClick={() => { setSelectModeArticles(!selectModeArticles); setSelectedArticles(new Set()); }}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold border transition-all ${
+                      selectModeArticles
+                        ? "bg-red-500/10 border-red-400 text-red-400"
+                        : "border-gold/30 text-gray-500 hover:border-gold hover:text-gold"
+                    }`}
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                    {selectModeArticles ? "Annuler" : "Sélectionner"}
+                  </button>
                   <button onClick={openCreate} className="btn-gold flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold">
                     <Plus className="w-4 h-4" /> Nouvel article
                   </button>
@@ -917,8 +930,8 @@ export default function AdminPage() {
                 ))}
               </div>
 
-              {/* Barre d'actions groupées */}
-              {selectedArticles.size > 0 && (
+              {/* Barre d'actions groupées articles */}
+              {selectModeArticles && selectedArticles.size > 0 && (
                 <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
                   className="flex items-center justify-between bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-2.5 mb-3">
                   <span className="text-sm font-medium text-red-400">
@@ -955,12 +968,14 @@ export default function AdminPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-gold/10">
-                          <th className="px-4 py-3 w-10">
-                            <Checkbox
-                              checked={selectedArticles.size === filteredArticles.length && filteredArticles.length > 0}
-                              onChange={() => toggleAllArticles(filteredArticles)}
-                            />
-                          </th>
+                          {selectModeArticles && (
+                            <th className="px-4 py-3 w-10">
+                              <Checkbox
+                                checked={selectedArticles.size === filteredArticles.length && filteredArticles.length > 0}
+                                onChange={() => toggleAllArticles(filteredArticles)}
+                              />
+                            </th>
+                          )}
                           <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">Article</th>
                           <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium hidden sm:table-cell">Catégorie</th>
                           <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">Prix/jour</th>
@@ -973,12 +988,14 @@ export default function AdminPage() {
                         {filteredArticles.map((article) => (
                           <tr key={article.id}
                             className={`border-b border-gold/5 transition-colors ${selectedArticles.has(article.id) ? "bg-gold/10" : "hover:bg-gold/5"}`}>
-                            <td className="px-4 py-3">
-                              <Checkbox
-                                checked={selectedArticles.has(article.id)}
-                                onChange={() => toggleArticle(article.id)}
-                              />
-                            </td>
+                            {selectModeArticles && (
+                              <td className="px-4 py-3">
+                                <Checkbox
+                                  checked={selectedArticles.has(article.id)}
+                                  onChange={() => toggleArticle(article.id)}
+                                />
+                              </td>
+                            )}
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-3">
                                 <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-charcoal-soft">
@@ -1052,6 +1069,17 @@ export default function AdminPage() {
                   <button onClick={fetchCatalogue} className="text-gray-400 hover:text-gold transition-colors p-2">
                     <RefreshCw className="w-4 h-4" />
                   </button>
+                  <button
+                    onClick={() => { setSelectModeCats(!selectModeCats); setSelectedCats(new Set()); }}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold border transition-all ${
+                      selectModeCats
+                        ? "bg-red-500/10 border-red-400 text-red-400"
+                        : "border-gold/30 text-gray-500 hover:border-gold hover:text-gold"
+                    }`}
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                    {selectModeCats ? "Annuler" : "Sélectionner"}
+                  </button>
                   <button onClick={openCreateCat} className="btn-gold flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold">
                     <Plus className="w-4 h-4" /> Nouvelle catégorie
                   </button>
@@ -1092,7 +1120,7 @@ export default function AdminPage() {
                 ) : (
                   <>
                     {/* Barre sélection catégories */}
-                    {selectedCats.size > 0 && (
+                    {selectModeCats && selectedCats.size > 0 && (
                       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
                         className="flex items-center justify-between bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-2.5 mb-3">
                         <span className="text-sm font-medium text-red-400">
@@ -1114,13 +1142,15 @@ export default function AdminPage() {
                     )}
 
                     {/* Tout sélectionner */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <Checkbox
-                        checked={selectedCats.size === filtered.length && filtered.length > 0}
-                        onChange={() => toggleAllCats(filtered)}
-                      />
-                      <span className="text-sm text-gray-500 font-medium">Tout sélectionner</span>
-                    </div>
+                    {selectModeCats && (
+                      <div className="flex items-center gap-2 mb-3">
+                        <Checkbox
+                          checked={selectedCats.size === filtered.length && filtered.length > 0}
+                          onChange={() => toggleAllCats(filtered)}
+                        />
+                        <span className="text-sm text-gray-500 font-medium">Tout sélectionner</span>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filtered.map((cat) => {
@@ -1131,10 +1161,12 @@ export default function AdminPage() {
                             className={`glass-card rounded-2xl p-4 hover-gold-border group transition-all ${isSelected ? "ring-2 ring-red-400/60" : ""}`}>
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex items-center gap-3">
-                                <Checkbox
-                                  checked={isSelected}
-                                  onChange={() => toggleCat(cat.id)}
-                                />
+                                {selectModeCats && (
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onChange={() => toggleCat(cat.id)}
+                                  />
+                                )}
                                 <span className="text-2xl">{cat.icon}</span>
                                 <div>
                                   <p className="text-off-white text-sm font-semibold">{cat.name_fr}</p>
