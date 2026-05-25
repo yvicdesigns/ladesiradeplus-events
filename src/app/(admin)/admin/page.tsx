@@ -6,7 +6,7 @@ import Image from "next/image";
 import {
   LayoutDashboard, Package, ShoppingBag, BarChart3, Settings,
   Plus, Edit3, Trash2, MessageCircle, TrendingUp, Users,
-  DollarSign, RefreshCw, X, Save, AlertTriangle, Check, Tag,
+  DollarSign, RefreshCw, X, Save, AlertTriangle, Check, Tag, CheckSquare,
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -19,23 +19,21 @@ type AdminTab = "dashboard" | "catalogue" | "categories" | "orders" | "stats" | 
 
 type ArticleForm = {
   name_fr: string;
-  name_en: string;
   service: ServiceType;
   category_id: string;
   price_per_day: number;
   unit_fr: string;
   stock_available: number;
   description_fr: string;
-  description_en: string;
   image_url: string;
   is_active: boolean;
   is_featured: boolean;
 };
 
 const EMPTY_FORM: ArticleForm = {
-  name_fr: "", name_en: "", service: "decoration", category_id: "",
+  name_fr: "", service: "decoration", category_id: "",
   price_per_day: 0, unit_fr: "/jour", stock_available: 0,
-  description_fr: "", description_en: "", image_url: "",
+  description_fr: "", image_url: "",
   is_active: true, is_featured: false,
 };
 
@@ -84,11 +82,11 @@ function ArticleModal({
   useEffect(() => {
     if (article) {
       setForm({
-        name_fr: article.name_fr, name_en: article.name_en,
+        name_fr: article.name_fr,
         service: article.service, category_id: article.category_id ?? "",
         price_per_day: article.price_per_day, unit_fr: article.unit_fr,
         stock_available: article.stock_available,
-        description_fr: article.description_fr, description_en: article.description_en,
+        description_fr: article.description_fr,
         image_url: article.images?.[0] ?? "",
         is_active: article.is_active, is_featured: article.is_featured,
       });
@@ -110,14 +108,14 @@ function ArticleModal({
 
     const payload = {
       name_fr: form.name_fr.trim(),
-      name_en: form.name_en.trim() || form.name_fr.trim(),
+      name_en: form.name_fr.trim(),
       service: form.service,
       category_id: form.category_id || null,
       price_per_day: form.price_per_day,
       unit_fr: form.unit_fr || "/jour",
       stock_available: form.stock_available,
       description_fr: form.description_fr.trim(),
-      description_en: form.description_en.trim(),
+      description_en: form.description_fr.trim(),
       images: form.image_url ? [form.image_url] : [],
       is_active: form.is_active,
       is_featured: form.is_featured,
@@ -200,26 +198,15 @@ function ArticleModal({
               </div>
             </div>
 
-            {/* Noms */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Nom français *</label>
-                <input
-                  value={form.name_fr}
-                  onChange={(e) => set("name_fr", e.target.value)}
-                  placeholder="Arche florale blanche"
-                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Nom anglais</label>
-                <input
-                  value={form.name_en}
-                  onChange={(e) => set("name_en", e.target.value)}
-                  placeholder="White floral arch"
-                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
-                />
-              </div>
+            {/* Nom */}
+            <div>
+              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Nom de l&apos;article *</label>
+              <input
+                value={form.name_fr}
+                onChange={(e) => set("name_fr", e.target.value)}
+                placeholder="Arche florale blanche"
+                className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+              />
             </div>
 
             {/* Prix + Unité + Stock */}
@@ -255,9 +242,9 @@ function ArticleModal({
               </div>
             </div>
 
-            {/* Description FR */}
+            {/* Description */}
             <div>
-              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Description français</label>
+              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Description</label>
               <textarea
                 rows={3} value={form.description_fr}
                 onChange={(e) => set("description_fr", e.target.value)}
@@ -372,7 +359,6 @@ function DeleteConfirm({
 
 type CategoryForm = {
   name_fr: string;
-  name_en: string;
   service: ServiceType;
   slug: string;
   icon: string;
@@ -381,7 +367,7 @@ type CategoryForm = {
 };
 
 const EMPTY_CAT_FORM: CategoryForm = {
-  name_fr: "", name_en: "", service: "decoration",
+  name_fr: "", service: "decoration",
   slug: "", icon: "📦", image_url: "", sort_order: 0,
 };
 
@@ -407,7 +393,7 @@ function CategoryModal({
   useEffect(() => {
     if (category) {
       setForm({
-        name_fr: category.name_fr, name_en: category.name_en,
+        name_fr: category.name_fr,
         service: category.service, slug: category.slug,
         icon: category.icon ?? "📦", image_url: category.image_url ?? "",
         sort_order: category.sort_order ?? 0,
@@ -428,7 +414,7 @@ function CategoryModal({
     const autoSlug = form.slug.trim() || slugify(form.name_fr) + "-" + Date.now();
     const payload = {
       name_fr: form.name_fr.trim(),
-      name_en: form.name_en.trim() || form.name_fr.trim(),
+      name_en: form.name_fr.trim(),
       service: form.service,
       icon: form.icon.trim() || "📦",
       image_url: form.image_url || null,
@@ -526,15 +512,6 @@ function CategoryModal({
               />
             </div>
 
-            <div>
-              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Nom anglais</label>
-              <input
-                value={form.name_en}
-                onChange={(e) => setF("name_en", e.target.value)}
-                placeholder="Arches & Structures"
-                className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
-              />
-            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -649,6 +626,11 @@ export default function AdminPage() {
   const [deleteCatLoading, setDeleteCatLoading] = useState(false);
   const [catServiceFilter, setCatServiceFilter] = useState<ServiceType | "all">("all");
 
+  // Sélection multiple
+  const [selectedArticles, setSelectedArticles] = useState<Set<string>>(new Set());
+  const [selectedCats, setSelectedCats]         = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting]         = useState(false);
+
   const supabase = createClient();
 
   const fetchOrders = useCallback(async () => {
@@ -702,6 +684,34 @@ export default function AdminPage() {
   const openEdit   = (a: Article) => { setEditingArticle(a); setModalOpen(true); };
   const openCreateCat = () => { setEditingCat(null); setCatModalOpen(true); };
   const openEditCat   = (c: Category) => { setEditingCat(c); setCatModalOpen(true); };
+
+  const toggleArticle = (id: string) =>
+    setSelectedArticles((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  const toggleAllArticles = (list: Article[]) =>
+    setSelectedArticles(selectedArticles.size === list.length ? new Set() : new Set(list.map((a) => a.id)));
+
+  const toggleCat = (id: string) =>
+    setSelectedCats((prev) => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  const toggleAllCats = (list: Category[]) =>
+    setSelectedCats(selectedCats.size === list.length ? new Set() : new Set(list.map((c) => c.id)));
+
+  const bulkDeleteArticles = async () => {
+    if (!selectedArticles.size) return;
+    setBulkDeleting(true);
+    await supabase.from("articles").delete().in("id", Array.from(selectedArticles));
+    setArticles((prev) => prev.filter((a) => !selectedArticles.has(a.id)));
+    setSelectedArticles(new Set());
+    setBulkDeleting(false);
+  };
+
+  const bulkDeleteCats = async () => {
+    if (!selectedCats.size) return;
+    setBulkDeleting(true);
+    await supabase.from("categories").delete().in("id", Array.from(selectedCats));
+    setCategories((prev) => prev.filter((c) => !selectedCats.has(c.id)));
+    setSelectedCats(new Set());
+    setBulkDeleting(false);
+  };
 
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount ?? 0), 0);
   const pendingCount = orders.filter((o) => o.status === "pending").length;
@@ -891,6 +901,28 @@ export default function AdminPage() {
                 ))}
               </div>
 
+              {/* Barre d'actions groupées */}
+              {selectedArticles.size > 0 && (
+                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center justify-between bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-2.5 mb-3">
+                  <span className="text-sm font-medium text-red-400">
+                    <CheckSquare className="w-4 h-4 inline mr-1.5" />
+                    {selectedArticles.size} article{selectedArticles.size > 1 ? "s" : ""} sélectionné{selectedArticles.size > 1 ? "s" : ""}
+                  </span>
+                  <div className="flex gap-2">
+                    <button onClick={() => setSelectedArticles(new Set())}
+                      className="text-xs text-gray-400 hover:text-off-white px-3 py-1.5 rounded-lg border border-gold/20 transition-colors">
+                      Désélectionner
+                    </button>
+                    <button onClick={bulkDeleteArticles} disabled={bulkDeleting}
+                      className="text-xs text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-60">
+                      {bulkDeleting ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      Supprimer la sélection
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
               {loadingArticles ? (
                 <div className="space-y-2">{[1,2,3,4].map(i => <div key={i} className="h-16 bg-charcoal-soft rounded-xl animate-pulse" />)}</div>
               ) : filteredArticles.length === 0 ? (
@@ -907,6 +939,12 @@ export default function AdminPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-gold/10">
+                          <th className="px-4 py-3 w-8">
+                            <input type="checkbox"
+                              checked={selectedArticles.size === filteredArticles.length && filteredArticles.length > 0}
+                              onChange={() => toggleAllArticles(filteredArticles)}
+                              className="w-4 h-4 accent-gold rounded cursor-pointer" />
+                          </th>
                           <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">Article</th>
                           <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium hidden sm:table-cell">Catégorie</th>
                           <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">Prix/jour</th>
@@ -917,7 +955,14 @@ export default function AdminPage() {
                       </thead>
                       <tbody>
                         {filteredArticles.map((article) => (
-                          <tr key={article.id} className="border-b border-gold/5 hover:bg-gold/5 transition-colors">
+                          <tr key={article.id}
+                            className={`border-b border-gold/5 transition-colors ${selectedArticles.has(article.id) ? "bg-gold/10" : "hover:bg-gold/5"}`}>
+                            <td className="px-4 py-3">
+                              <input type="checkbox"
+                                checked={selectedArticles.has(article.id)}
+                                onChange={() => toggleArticle(article.id)}
+                                className="w-4 h-4 accent-gold rounded cursor-pointer" />
+                            </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-3">
                                 <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-charcoal-soft">
@@ -959,16 +1004,12 @@ export default function AdminPage() {
                             </td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => openEdit(article)}
-                                  className="w-8 h-8 rounded-lg border border-gold/20 hover:border-gold hover:text-gold text-gray-400 flex items-center justify-center transition-all"
-                                >
+                                <button onClick={() => openEdit(article)}
+                                  className="w-8 h-8 rounded-lg border border-gold/20 hover:border-gold hover:text-gold text-gray-400 flex items-center justify-center transition-all">
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
-                                <button
-                                  onClick={() => setDeletingArticle(article)}
-                                  className="w-8 h-8 rounded-lg border border-red-500/20 hover:border-red-500 hover:text-red-400 text-gray-400 flex items-center justify-center transition-all"
-                                >
+                                <button onClick={() => setDeletingArticle(article)}
+                                  className="w-8 h-8 rounded-lg border border-red-500/20 hover:border-red-500 hover:text-red-400 text-gray-400 flex items-center justify-center transition-all">
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
@@ -1033,48 +1074,78 @@ export default function AdminPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filtered.map((cat) => {
-                      const articleCount = articles.filter((a) => a.category_id === cat.id).length;
-                      return (
-                        <motion.div
-                          key={cat.id}
-                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                          className="glass-card rounded-2xl p-4 hover-gold-border group"
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <span className="text-2xl">{cat.icon}</span>
-                              <div>
-                                <p className="text-off-white text-sm font-semibold">{cat.name_fr}</p>
-                                <p className="text-xs text-gray-500">{serviceLabels[cat.service]}</p>
+                  <>
+                    {/* Barre sélection catégories */}
+                    {selectedCats.size > 0 && (
+                      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                        className="flex items-center justify-between bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-2.5 mb-3">
+                        <span className="text-sm font-medium text-red-400">
+                          <CheckSquare className="w-4 h-4 inline mr-1.5" />
+                          {selectedCats.size} catégorie{selectedCats.size > 1 ? "s" : ""} sélectionnée{selectedCats.size > 1 ? "s" : ""}
+                        </span>
+                        <div className="flex gap-2">
+                          <button onClick={() => setSelectedCats(new Set())}
+                            className="text-xs text-gray-400 hover:text-off-white px-3 py-1.5 rounded-lg border border-gold/20 transition-colors">
+                            Désélectionner
+                          </button>
+                          <button onClick={bulkDeleteCats} disabled={bulkDeleting}
+                            className="text-xs text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-60">
+                            {bulkDeleting ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                            Supprimer la sélection
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Tout sélectionner */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <input type="checkbox"
+                        checked={selectedCats.size === filtered.length}
+                        onChange={() => toggleAllCats(filtered)}
+                        className="w-4 h-4 accent-gold rounded cursor-pointer" />
+                      <span className="text-xs text-gray-500">Tout sélectionner</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filtered.map((cat) => {
+                        const articleCount = articles.filter((a) => a.category_id === cat.id).length;
+                        const isSelected = selectedCats.has(cat.id);
+                        return (
+                          <motion.div key={cat.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                            className={`glass-card rounded-2xl p-4 hover-gold-border group transition-all ${isSelected ? "ring-2 ring-red-400/60" : ""}`}>
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <input type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleCat(cat.id)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-4 h-4 accent-gold rounded cursor-pointer flex-shrink-0" />
+                                <span className="text-2xl">{cat.icon}</span>
+                                <div>
+                                  <p className="text-off-white text-sm font-semibold">{cat.name_fr}</p>
+                                  <p className="text-xs text-gray-500">{serviceLabels[cat.service]}</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => openEditCat(cat)}
+                                  className="w-7 h-7 rounded-lg border border-gold/20 hover:border-gold hover:text-gold text-gray-400 flex items-center justify-center transition-all">
+                                  <Edit3 className="w-3 h-3" />
+                                </button>
+                                <button onClick={() => setDeletingCat(cat)}
+                                  className="w-7 h-7 rounded-lg border border-red-500/20 hover:border-red-500 hover:text-red-400 text-gray-400 flex items-center justify-center transition-all">
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
                               </div>
                             </div>
-                            <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => openEditCat(cat)}
-                                className="w-7 h-7 rounded-lg border border-gold/20 hover:border-gold hover:text-gold text-gray-400 flex items-center justify-center transition-all"
-                              >
-                                <Edit3 className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => setDeletingCat(cat)}
-                                className="w-7 h-7 rounded-lg border border-red-500/20 hover:border-red-500 hover:text-red-400 text-gray-400 flex items-center justify-center transition-all"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
+                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gold/10">
+                              <span className="text-xs text-gray-500">{articleCount} article{articleCount > 1 ? "s" : ""}</span>
+                              <span className="text-xs text-gray-600">ordre : {cat.sort_order}</span>
                             </div>
-                          </div>
-                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gold/10">
-                            <span className="text-xs text-gray-500">
-                              {articleCount} article{articleCount > 1 ? "s" : ""}
-                            </span>
-                            <span className="text-xs text-gray-600">ordre : {cat.sort_order}</span>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </>
                 );
               })()}
             </motion.div>
