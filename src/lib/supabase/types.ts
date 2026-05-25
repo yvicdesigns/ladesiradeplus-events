@@ -46,7 +46,7 @@ export interface Database {
           id: string;
           slug: string;
           service: ServiceType;
-          category_id: string;
+          category_id: string | null;
           name_fr: string;
           name_en: string;
           description_fr: string;
@@ -63,7 +63,7 @@ export interface Database {
           id?: string;
           slug: string;
           service: ServiceType;
-          category_id: string;
+          category_id?: string | null;
           name_fr: string;
           name_en: string;
           description_fr: string;
@@ -80,7 +80,7 @@ export interface Database {
           id?: string;
           slug?: string;
           service?: ServiceType;
-          category_id?: string;
+          category_id?: string | null;
           name_fr?: string;
           name_en?: string;
           description_fr?: string;

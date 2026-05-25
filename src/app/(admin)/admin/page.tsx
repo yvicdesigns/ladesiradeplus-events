@@ -1,73 +1,466 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import {
   LayoutDashboard, Package, ShoppingBag, BarChart3, Settings,
-  Plus, Edit3, Trash2, MessageCircle, TrendingUp, Users, DollarSign, RefreshCw
+  Plus, Edit3, Trash2, MessageCircle, TrendingUp, Users,
+  DollarSign, RefreshCw, X, Save, AlertTriangle, Check,
 } from "lucide-react";
-import { mockArticles, mockCategories } from "@/data/mock";
 import { formatPrice } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import type { Order, OrderStatus } from "@/lib/supabase/types";
+import type { Article, Category, Order, OrderStatus, ServiceType } from "@/lib/supabase/types";
+
+// ─── Types ───────────────────────────────────────────────────
 
 type AdminTab = "dashboard" | "catalogue" | "orders" | "stats" | "settings";
 
+type ArticleForm = {
+  name_fr: string;
+  name_en: string;
+  service: ServiceType;
+  category_id: string;
+  price_per_day: number;
+  unit_fr: string;
+  stock_available: number;
+  description_fr: string;
+  description_en: string;
+  image_url: string;
+  is_active: boolean;
+  is_featured: boolean;
+};
+
+const EMPTY_FORM: ArticleForm = {
+  name_fr: "", name_en: "", service: "decoration", category_id: "",
+  price_per_day: 0, unit_fr: "/jour", stock_available: 0,
+  description_fr: "", description_en: "", image_url: "",
+  is_active: true, is_featured: false,
+};
+
 const statusConfig: Record<string, { label: string; color: string }> = {
-  pending: { label: "En attente", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
-  confirmed: { label: "Confirmée", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  delivered: { label: "Livrée", color: "bg-green-500/20 text-green-400 border-green-500/30" },
-  cancelled: { label: "Annulée", color: "bg-red-500/20 text-red-400 border-red-500/30" },
+  pending:   { label: "En attente", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
+  confirmed: { label: "Confirmée",  color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  delivered: { label: "Livrée",     color: "bg-green-500/20 text-green-400 border-green-500/30" },
+  cancelled: { label: "Annulée",    color: "bg-red-500/20 text-red-400 border-red-500/30" },
+};
+
+const serviceLabels: Record<ServiceType, string> = {
+  logistique: "Logistique", traiteur: "Traiteur", decoration: "Décoration",
 };
 
 const tabs: { key: AdminTab; label: string; icon: React.ElementType }[] = [
-  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { key: "catalogue", label: "Catalogue", icon: Package },
-  { key: "orders", label: "Commandes", icon: ShoppingBag },
-  { key: "stats", label: "Statistiques", icon: BarChart3 },
-  { key: "settings", label: "Paramètres", icon: Settings },
+  { key: "dashboard", label: "Dashboard",   icon: LayoutDashboard },
+  { key: "catalogue", label: "Catalogue",   icon: Package },
+  { key: "orders",    label: "Commandes",   icon: ShoppingBag },
+  { key: "stats",     label: "Statistiques",icon: BarChart3 },
+  { key: "settings",  label: "Paramètres",  icon: Settings },
 ];
 
+function slugify(str: string) {
+  return str.toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+// ─── Article Modal ────────────────────────────────────────────
+
+function ArticleModal({
+  open, article, categories, onClose, onSaved,
+}: {
+  open: boolean;
+  article: Article | null;
+  categories: Category[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const supabase = createClient();
+  const [form, setForm] = useState<ArticleForm>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (article) {
+      setForm({
+        name_fr: article.name_fr, name_en: article.name_en,
+        service: article.service, category_id: article.category_id ?? "",
+        price_per_day: article.price_per_day, unit_fr: article.unit_fr,
+        stock_available: article.stock_available,
+        description_fr: article.description_fr, description_en: article.description_en,
+        image_url: article.images?.[0] ?? "",
+        is_active: article.is_active, is_featured: article.is_featured,
+      });
+    } else {
+      setForm(EMPTY_FORM);
+    }
+    setError(null);
+  }, [article, open]);
+
+  const filteredCats = categories.filter((c) => c.service === form.service);
+
+  const set = (k: keyof ArticleForm, v: ArticleForm[keyof ArticleForm]) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSave = async () => {
+    if (!form.name_fr.trim()) { setError("Le nom en français est requis."); return; }
+    if (form.price_per_day <= 0) { setError("Le prix doit être supérieur à 0."); return; }
+    setSaving(true); setError(null);
+
+    const payload = {
+      name_fr: form.name_fr.trim(),
+      name_en: form.name_en.trim() || form.name_fr.trim(),
+      service: form.service,
+      category_id: form.category_id || null,
+      price_per_day: form.price_per_day,
+      unit_fr: form.unit_fr || "/jour",
+      stock_available: form.stock_available,
+      description_fr: form.description_fr.trim(),
+      description_en: form.description_en.trim(),
+      images: form.image_url ? [form.image_url] : [],
+      is_active: form.is_active,
+      is_featured: form.is_featured,
+    };
+
+    let err;
+    if (article) {
+      ({ error: err } = await supabase.from("articles").update(payload).eq("id", article.id));
+    } else {
+      const slug = slugify(form.name_fr) + "-" + Date.now();
+      ({ error: err } = await supabase.from("articles").insert({ ...payload, slug }));
+    }
+
+    setSaving(false);
+    if (err) { setError(err.message); return; }
+    onSaved();
+    onClose();
+  };
+
+  if (!open) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-charcoal-deep/80 backdrop-blur-sm flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          onClick={(e) => e.stopPropagation()}
+          className="bg-charcoal border border-gold/20 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gold/10 sticky top-0 bg-charcoal z-10">
+            <h2 className="font-playfair text-lg font-bold text-off-white">
+              {article ? "Modifier l'article" : "Nouvel article"}
+            </h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-off-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="p-6 space-y-4">
+            {error && (
+              <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                <p className="text-sm text-red-400">{error}</p>
+              </div>
+            )}
+
+            {/* Service + Catégorie */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Service *</label>
+                <select
+                  value={form.service}
+                  onChange={(e) => { set("service", e.target.value as ServiceType); set("category_id", ""); }}
+                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white outline-none"
+                >
+                  {Object.entries(serviceLabels).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Catégorie</label>
+                <select
+                  value={form.category_id}
+                  onChange={(e) => set("category_id", e.target.value)}
+                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white outline-none"
+                >
+                  <option value="">— Aucune —</option>
+                  {filteredCats.map((c) => (
+                    <option key={c.id} value={c.id}>{c.icon} {c.name_fr}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Noms */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Nom français *</label>
+                <input
+                  value={form.name_fr}
+                  onChange={(e) => set("name_fr", e.target.value)}
+                  placeholder="Arche florale blanche"
+                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Nom anglais</label>
+                <input
+                  value={form.name_en}
+                  onChange={(e) => set("name_en", e.target.value)}
+                  placeholder="White floral arch"
+                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Prix + Unité + Stock */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Prix (FCFA) *</label>
+                <input
+                  type="number" min={0}
+                  value={form.price_per_day || ""}
+                  onChange={(e) => set("price_per_day", Number(e.target.value))}
+                  placeholder="35000"
+                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Unité</label>
+                <input
+                  value={form.unit_fr}
+                  onChange={(e) => set("unit_fr", e.target.value)}
+                  placeholder="/jour"
+                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Stock dispo</label>
+                <input
+                  type="number" min={0}
+                  value={form.stock_available || ""}
+                  onChange={(e) => set("stock_available", Number(e.target.value))}
+                  placeholder="5"
+                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Description FR */}
+            <div>
+              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Description français</label>
+              <textarea
+                rows={3} value={form.description_fr}
+                onChange={(e) => set("description_fr", e.target.value)}
+                placeholder="Description détaillée de l'article..."
+                className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors resize-none"
+              />
+            </div>
+
+            {/* Image URL */}
+            <div>
+              <label className="text-xs text-gray-400 mb-1.5 block font-medium">URL de l&apos;image</label>
+              <input
+                value={form.image_url}
+                onChange={(e) => set("image_url", e.target.value)}
+                placeholder="https://images.unsplash.com/photo-..."
+                className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+              />
+              {form.image_url && (
+                <div className="mt-2 relative w-full h-28 rounded-xl overflow-hidden bg-charcoal-soft">
+                  <Image src={form.image_url} alt="preview" fill className="object-cover" sizes="400px" />
+                </div>
+              )}
+            </div>
+
+            {/* Toggles */}
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <div
+                  onClick={() => set("is_active", !form.is_active)}
+                  className={`w-10 h-5 rounded-full transition-colors relative ${form.is_active ? "bg-green-500" : "bg-charcoal-soft"}`}
+                >
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.is_active ? "translate-x-5" : "translate-x-0.5"}`} />
+                </div>
+                <span className="text-sm text-gray-300">Actif</span>
+              </label>
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <div
+                  onClick={() => set("is_featured", !form.is_featured)}
+                  className={`w-10 h-5 rounded-full transition-colors relative ${form.is_featured ? "bg-gold" : "bg-charcoal-soft"}`}
+                >
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${form.is_featured ? "translate-x-5" : "translate-x-0.5"}`} />
+                </div>
+                <span className="text-sm text-gray-300">Mis en avant</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gold/10 flex items-center justify-end gap-3 sticky bottom-0 bg-charcoal">
+            <button
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-full text-sm text-gray-400 hover:text-off-white border border-gold/20 hover:border-gold/40 transition-all"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="btn-gold flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold disabled:opacity-60"
+            >
+              {saving ? (
+                <span className="w-4 h-4 border-2 border-charcoal-deep/30 border-t-charcoal-deep rounded-full animate-spin" />
+              ) : <Save className="w-4 h-4" />}
+              {article ? "Enregistrer" : "Créer l'article"}
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ─── Delete Confirm ───────────────────────────────────────────
+
+function DeleteConfirm({
+  article, onCancel, onConfirm, deleting,
+}: {
+  article: Article;
+  onCancel: () => void;
+  onConfirm: () => void;
+  deleting: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      className="fixed inset-0 z-50 bg-charcoal-deep/80 backdrop-blur-sm flex items-center justify-center p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }}
+        className="bg-charcoal border border-red-500/30 rounded-2xl p-6 max-w-sm w-full"
+      >
+        <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4">
+          <Trash2 className="w-6 h-6 text-red-400" />
+        </div>
+        <h3 className="font-playfair text-lg font-bold text-off-white text-center mb-2">Supprimer l&apos;article ?</h3>
+        <p className="text-sm text-gray-400 text-center mb-6">
+          <strong className="text-off-white">{article.name_fr}</strong> sera définitivement supprimé.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="flex-1 py-2.5 rounded-full border border-gold/20 text-sm text-gray-400 hover:text-off-white transition-colors">
+            Annuler
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={deleting}
+            className="flex-1 py-2.5 rounded-full bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {deleting ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Supprimer
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────
+
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [activeTab, setActiveTab]       = useState<AdminTab>("dashboard");
+  const [orders, setOrders]             = useState<Order[]>([]);
+  const [articles, setArticles]         = useState<Article[]>([]);
+  const [categories, setCategories]     = useState<Category[]>([]);
+  const [loadingOrders, setLoadingOrders]   = useState(true);
+  const [loadingArticles, setLoadingArticles] = useState(true);
+  const [modalOpen, setModalOpen]       = useState(false);
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
+  const [deletingArticle, setDeletingArticle] = useState<Article | null>(null);
+  const [deleteLoading, setDeleteLoading]   = useState(false);
+  const [savedBanner, setSavedBanner]   = useState(false);
+  const [serviceFilter, setServiceFilter] = useState<ServiceType | "all">("all");
 
   const supabase = createClient();
 
   const fetchOrders = useCallback(async () => {
     setLoadingOrders(true);
-    const { data } = await supabase
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const { data } = await supabase.from("orders").select("*").order("created_at", { ascending: false });
     setOrders(data ?? []);
     setLoadingOrders(false);
   }, [supabase]);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  const fetchCatalogue = useCallback(async () => {
+    setLoadingArticles(true);
+    const [{ data: arts }, { data: cats }] = await Promise.all([
+      supabase.from("articles").select("*").order("created_at", { ascending: false }),
+      supabase.from("categories").select("*").order("sort_order"),
+    ]);
+    setArticles(arts ?? []);
+    setCategories(cats ?? []);
+    setLoadingArticles(false);
+  }, [supabase]);
+
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => { if (activeTab === "catalogue") fetchCatalogue(); }, [activeTab, fetchCatalogue]);
 
   const updateStatus = async (id: string, status: string) => {
     const s = status as OrderStatus;
     await supabase.from("orders").update({ status: s }).eq("id", id);
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status: s } : o))
-    );
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: s } : o)));
   };
+
+  const handleDelete = async () => {
+    if (!deletingArticle) return;
+    setDeleteLoading(true);
+    await supabase.from("articles").delete().eq("id", deletingArticle.id);
+    setArticles((prev) => prev.filter((a) => a.id !== deletingArticle.id));
+    setDeleteLoading(false);
+    setDeletingArticle(null);
+  };
+
+  const openCreate = () => { setEditingArticle(null); setModalOpen(true); };
+  const openEdit   = (a: Article) => { setEditingArticle(a); setModalOpen(true); };
 
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total_amount ?? 0), 0);
   const pendingCount = orders.filter((o) => o.status === "pending").length;
-  const thisMonth = orders.filter((o) => {
-    const d = new Date(o.created_at);
-    const now = new Date();
+  const thisMonth    = orders.filter((o) => {
+    const d = new Date(o.created_at), now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
 
+  const filteredArticles = serviceFilter === "all"
+    ? articles
+    : articles.filter((a) => a.service === serviceFilter);
+
+  const getCatName = (id: string | null) => id ? (categories.find((c) => c.id === id)?.name_fr ?? "—") : "—";
+
   return (
     <div className="min-h-screen bg-charcoal-deep pt-16">
+      {/* Modals */}
+      <ArticleModal
+        open={modalOpen}
+        article={editingArticle}
+        categories={categories}
+        onClose={() => setModalOpen(false)}
+        onSaved={fetchCatalogue}
+      />
+      {deletingArticle && (
+        <DeleteConfirm
+          article={deletingArticle}
+          onCancel={() => setDeletingArticle(null)}
+          onConfirm={handleDelete}
+          deleting={deleteLoading}
+        />
+      )}
+
       <div className="flex">
         {/* Sidebar */}
         <aside className="w-64 min-h-screen bg-charcoal border-r border-gold/10 hidden lg:flex flex-col pt-6 px-4">
@@ -101,8 +494,8 @@ export default function AdminPage() {
           </nav>
         </aside>
 
-        {/* Mobile tabs */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-charcoal border-t border-gold/10 flex">
+        {/* Mobile bottom tabs */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-charcoal border-t border-gold/10 flex">
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -123,48 +516,33 @@ export default function AdminPage() {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 px-4 sm:px-6 py-6 pb-20 lg:pb-6">
-          {/* Dashboard */}
+        <main className="flex-1 px-4 sm:px-6 py-6 pb-20 lg:pb-6 overflow-hidden">
+
+          {/* ── Dashboard ── */}
           {activeTab === "dashboard" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <h1 className="font-playfair text-2xl font-bold text-off-white mb-6">Tableau de bord</h1>
-
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {[
                   { icon: ShoppingBag, label: "Commandes ce mois", value: String(thisMonth.length), color: "text-blue-400" },
-                  { icon: DollarSign, label: "CA total", value: formatPrice(totalRevenue), color: "text-green-400" },
-                  { icon: Users, label: "En attente", value: String(pendingCount), color: "text-yellow-400" },
-                  { icon: TrendingUp, label: "Total commandes", value: String(orders.length), color: "text-gold" },
+                  { icon: DollarSign,  label: "CA total",          value: formatPrice(totalRevenue),  color: "text-green-400" },
+                  { icon: Users,       label: "En attente",        value: String(pendingCount),        color: "text-yellow-400" },
+                  { icon: TrendingUp,  label: "Total commandes",   value: String(orders.length),       color: "text-gold" },
                 ].map((kpi, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.08 }}
-                    className="glass-card rounded-2xl p-4 hover-gold-border"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
-                    </div>
+                  <motion.div key={i} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }} className="glass-card rounded-2xl p-4 hover-gold-border">
+                    <kpi.icon className={`w-5 h-5 ${kpi.color} mb-3`} />
                     <p className="font-bold text-off-white text-lg">{kpi.value}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{kpi.label}</p>
                   </motion.div>
                 ))}
               </div>
-
               <div className="glass-card rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-semibold text-off-white">Dernières commandes</h2>
-                  <button onClick={fetchOrders} className="text-gray-400 hover:text-gold transition-colors">
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
+                  <button onClick={fetchOrders} className="text-gray-400 hover:text-gold transition-colors"><RefreshCw className="w-4 h-4" /></button>
                 </div>
                 {loadingOrders ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="h-14 bg-charcoal-soft rounded-xl animate-pulse" />
-                    ))}
-                  </div>
+                  <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-charcoal-soft rounded-xl animate-pulse" />)}</div>
                 ) : orders.length === 0 ? (
                   <p className="text-gray-500 text-sm text-center py-6">Aucune commande pour le moment</p>
                 ) : (
@@ -172,7 +550,7 @@ export default function AdminPage() {
                     {orders.slice(0, 5).map((order) => (
                       <div key={order.id} className="flex items-center justify-between gap-3 py-2 border-b border-gold/10 last:border-0">
                         <div>
-                          <span className="text-xs text-gold font-bold font-mono">{order.id.slice(0, 8).toUpperCase()}</span>
+                          <span className="text-xs text-gold font-bold font-mono">{order.id.slice(0,8).toUpperCase()}</span>
                           <p className="text-sm text-off-white">{order.customer_name}</p>
                           <p className="text-xs text-gray-400">{new Date(order.event_date).toLocaleDateString("fr-FR")}</p>
                         </div>
@@ -190,102 +568,144 @@ export default function AdminPage() {
             </motion.div>
           )}
 
-          {/* Catalogue management */}
+          {/* ── Catalogue ── */}
           {activeTab === "catalogue" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center justify-between mb-6">
-                <h1 className="font-playfair text-2xl font-bold text-off-white">Gestion du catalogue</h1>
-                <button className="btn-gold flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold">
-                  <Plus className="w-4 h-4" /> Nouvel article
-                </button>
-              </div>
-
-              <div className="mb-6">
-                <h2 className="text-sm text-gray-400 font-medium mb-3">Catégories ({mockCategories.length})</h2>
-                <div className="flex flex-wrap gap-2">
-                  {mockCategories.map((cat) => (
-                    <span key={cat.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-card border border-gold/20 text-sm">
-                      <span>{cat.icon}</span>
-                      <span className="text-off-white">{cat.name_fr}</span>
-                      <span className="text-gold text-xs">({cat.count})</span>
-                    </span>
-                  ))}
+                <div>
+                  <h1 className="font-playfair text-2xl font-bold text-off-white">Catalogue</h1>
+                  <p className="text-sm text-gray-400 mt-0.5">{articles.length} article{articles.length > 1 ? "s" : ""}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={fetchCatalogue} className="text-gray-400 hover:text-gold transition-colors p-2">
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                  <button onClick={openCreate} className="btn-gold flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold">
+                    <Plus className="w-4 h-4" /> Nouvel article
+                  </button>
                 </div>
               </div>
 
-              <div className="glass-card rounded-2xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gold/10">
-                        <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">Article</th>
-                        <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium hidden sm:table-cell">Catégorie</th>
-                        <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">Prix/jour</th>
-                        <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium hidden md:table-cell">Stock</th>
-                        <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">Statut</th>
-                        <th className="text-right px-4 py-3 text-xs text-gray-400 font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mockArticles.map((article) => (
-                        <tr key={article.id} className="border-b border-gold/5 hover:bg-gold/3 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-charcoal-soft">
-                                <Image src={article.images[0]} alt={article.name_fr} fill className="object-cover" sizes="40px" />
-                              </div>
-                              <span className="text-off-white text-xs font-medium line-clamp-2">{article.name_fr}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 hidden sm:table-cell">
-                            <span className="text-xs text-gray-400">{article.category_fr}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="text-gold text-xs font-semibold">{formatPrice(article.price_per_day)}</span>
-                          </td>
-                          <td className="px-4 py-3 hidden md:table-cell">
-                            <span className="text-off-white text-xs">{article.stock_available}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded-full text-xs border ${article.is_active ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>
-                              {article.is_active ? "Actif" : "Inactif"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button className="text-gray-400 hover:text-gold transition-colors">
-                                <Edit3 className="w-4 h-4" />
-                              </button>
-                              <button className="text-gray-400 hover:text-red-400 transition-colors">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
+              {/* Service filter */}
+              <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+                {(["all", "logistique", "traiteur", "decoration"] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setServiceFilter(s)}
+                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      serviceFilter === s
+                        ? "bg-gold text-charcoal-deep"
+                        : "border border-gold/20 text-gray-400 hover:text-gold"
+                    }`}
+                  >
+                    {s === "all" ? "Tous" : serviceLabels[s]}
+                  </button>
+                ))}
+              </div>
+
+              {loadingArticles ? (
+                <div className="space-y-2">{[1,2,3,4].map(i => <div key={i} className="h-16 bg-charcoal-soft rounded-xl animate-pulse" />)}</div>
+              ) : filteredArticles.length === 0 ? (
+                <div className="glass-card rounded-2xl p-12 text-center">
+                  <Package className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-400 mb-4">Aucun article pour le moment</p>
+                  <button onClick={openCreate} className="btn-gold px-6 py-2.5 rounded-full text-sm font-semibold">
+                    Créer le premier article
+                  </button>
+                </div>
+              ) : (
+                <div className="glass-card rounded-2xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gold/10">
+                          <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">Article</th>
+                          <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium hidden sm:table-cell">Catégorie</th>
+                          <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">Prix/jour</th>
+                          <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium hidden md:table-cell">Stock</th>
+                          <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">Statut</th>
+                          <th className="text-right px-4 py-3 text-xs text-gray-400 font-medium">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {filteredArticles.map((article) => (
+                          <tr key={article.id} className="border-b border-gold/5 hover:bg-gold/5 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-charcoal-soft">
+                                  {article.images?.[0] ? (
+                                    <Image src={article.images[0]} alt={article.name_fr} fill className="object-cover" sizes="40px" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-gray-600 text-lg">📦</div>
+                                  )}
+                                </div>
+                                <div>
+                                  <span className="text-off-white text-xs font-medium line-clamp-1">{article.name_fr}</span>
+                                  <span className="text-xs text-gray-500">{serviceLabels[article.service]}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 hidden sm:table-cell">
+                              <span className="text-xs text-gray-400">{getCatName(article.category_id)}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-gold text-xs font-semibold">{formatPrice(article.price_per_day)}</span>
+                              <span className="text-gray-500 text-xs ml-1">{article.unit_fr}</span>
+                            </td>
+                            <td className="px-4 py-3 hidden md:table-cell">
+                              <span className={`text-xs ${article.stock_available <= 2 ? "text-red-400" : "text-off-white"}`}>
+                                {article.stock_available}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-col gap-1">
+                                <span className={`px-2 py-0.5 rounded-full text-xs border w-fit ${article.is_active ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>
+                                  {article.is_active ? "Actif" : "Inactif"}
+                                </span>
+                                {article.is_featured && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs border bg-gold/20 text-gold border-gold/30 w-fit">
+                                    Mis en avant
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => openEdit(article)}
+                                  className="w-8 h-8 rounded-lg border border-gold/20 hover:border-gold hover:text-gold text-gray-400 flex items-center justify-center transition-all"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => setDeletingArticle(article)}
+                                  className="w-8 h-8 rounded-lg border border-red-500/20 hover:border-red-500 hover:text-red-400 text-gray-400 flex items-center justify-center transition-all"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
             </motion.div>
           )}
 
-          {/* Orders management */}
+          {/* ── Orders ── */}
           {activeTab === "orders" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <div className="flex items-center justify-between mb-6">
-                <h1 className="font-playfair text-2xl font-bold text-off-white">Gestion des commandes</h1>
+                <h1 className="font-playfair text-2xl font-bold text-off-white">Commandes</h1>
                 <button onClick={fetchOrders} className="flex items-center gap-2 text-sm text-gray-400 hover:text-gold transition-colors">
                   <RefreshCw className="w-4 h-4" /> Actualiser
                 </button>
               </div>
-
               {loadingOrders ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-24 bg-charcoal-soft rounded-2xl animate-pulse" />
-                  ))}
-                </div>
+                <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="h-24 bg-charcoal-soft rounded-2xl animate-pulse" />)}</div>
               ) : orders.length === 0 ? (
                 <div className="glass-card rounded-2xl p-12 text-center">
                   <ShoppingBag className="w-12 h-12 text-gray-600 mx-auto mb-3" />
@@ -294,39 +714,27 @@ export default function AdminPage() {
               ) : (
                 <div className="space-y-4">
                   {orders.map((order, i) => (
-                    <motion.div
-                      key={order.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="glass-card rounded-2xl p-5 hover-gold-border"
-                    >
+                    <motion.div key={order.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="glass-card rounded-2xl p-5 hover-gold-border">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="font-bold text-gold text-xs font-mono">{order.id.slice(0, 8).toUpperCase()}</span>
+                            <span className="font-bold text-gold text-xs font-mono">{order.id.slice(0,8).toUpperCase()}</span>
                             <span className={`px-2 py-0.5 rounded-full text-xs border ${statusConfig[order.status]?.color ?? statusConfig.pending.color}`}>
                               {statusConfig[order.status]?.label ?? "En attente"}
                             </span>
                           </div>
                           <p className="font-semibold text-off-white">{order.customer_name}</p>
-                          <p className="text-xs text-gray-400">
-                            {order.customer_phone} • Événement le {new Date(order.event_date).toLocaleDateString("fr-FR")}
-                          </p>
-                          {order.notes && (
-                            <p className="text-xs text-gray-500 mt-1 italic">{order.notes}</p>
-                          )}
+                          <p className="text-xs text-gray-400">{order.customer_phone} • {new Date(order.event_date).toLocaleDateString("fr-FR")}</p>
+                          {order.notes && <p className="text-xs text-gray-500 mt-1 italic">{order.notes}</p>}
                         </div>
                         <div className="flex items-center gap-3 flex-wrap">
                           <span className="text-gold font-bold">{formatPrice(order.total_amount)}</span>
                           <a
-                            href={`https://wa.me/${order.customer_phone.replace(/[\s+]/g, "")}?text=Bonjour%20${encodeURIComponent(order.customer_name)}%20!%20Concernant%20votre%20demande%20de%20location...`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href={`https://wa.me/${order.customer_phone.replace(/[\s+]/g,"")}?text=Bonjour%20${encodeURIComponent(order.customer_name)}%20!%20Concernant%20votre%20demande...`}
+                            target="_blank" rel="noopener noreferrer"
                             className="flex items-center gap-1.5 btn-whatsapp px-3 py-1.5 rounded-full text-xs font-semibold"
                           >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            Répondre
+                            <MessageCircle className="w-3.5 h-3.5" /> Répondre
                           </a>
                           <select
                             value={order.status}
@@ -347,11 +755,10 @@ export default function AdminPage() {
             </motion.div>
           )}
 
-          {/* Stats */}
+          {/* ── Stats ── */}
           {activeTab === "stats" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <h1 className="font-playfair text-2xl font-bold text-off-white mb-6">Statistiques</h1>
-
               <div className="glass-card rounded-2xl p-5 mb-6">
                 <h2 className="font-semibold text-off-white mb-4">Répartition par statut</h2>
                 <div className="space-y-3">
@@ -361,45 +768,10 @@ export default function AdminPage() {
                     return (
                       <div key={key} className="flex items-center gap-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full border w-24 text-center ${cfg.color}`}>{cfg.label}</span>
-                        <div className="flex-1">
-                          <div className="h-1.5 bg-charcoal-soft rounded-full overflow-hidden">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${pct}%` }}
-                              transition={{ duration: 0.7 }}
-                              className="h-full bg-gradient-to-r from-gold-dark to-gold-light rounded-full"
-                            />
-                          </div>
+                        <div className="flex-1 h-1.5 bg-charcoal-soft rounded-full overflow-hidden">
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.7 }} className="h-full bg-gradient-to-r from-gold-dark to-gold-light rounded-full" />
                         </div>
-                        <span className="text-xs text-gray-400 w-12 text-right">{count} ({pct}%)</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="glass-card rounded-2xl p-5">
-                <h2 className="font-semibold text-off-white mb-4">Top articles du catalogue</h2>
-                <div className="space-y-3">
-                  {mockArticles.slice(0, 5).map((article, i) => {
-                    const percentage = 100 - i * 18;
-                    return (
-                      <div key={article.id} className="flex items-center gap-3">
-                        <span className="text-gold font-bold text-sm w-4">#{i + 1}</span>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-off-white">{article.name_fr}</span>
-                            <span className="text-xs text-gold">{formatPrice(article.price_per_day)}</span>
-                          </div>
-                          <div className="h-1.5 bg-charcoal-soft rounded-full overflow-hidden">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${percentage}%` }}
-                              transition={{ delay: i * 0.1, duration: 0.8 }}
-                              className="h-full bg-gradient-to-r from-gold-dark to-gold-light rounded-full"
-                            />
-                          </div>
-                        </div>
+                        <span className="text-xs text-gray-400 w-16 text-right">{count} ({pct}%)</span>
                       </div>
                     );
                   })}
@@ -408,51 +780,37 @@ export default function AdminPage() {
             </motion.div>
           )}
 
-          {/* Settings */}
+          {/* ── Settings ── */}
           {activeTab === "settings" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <h1 className="font-playfair text-2xl font-bold text-off-white mb-6">Paramètres</h1>
-
               <div className="space-y-6">
                 <div className="glass-card rounded-2xl p-5">
                   <h2 className="font-semibold text-off-white mb-4">Informations de l&apos;entreprise</h2>
                   <div className="space-y-3">
                     {[
                       { label: "Nom de l'entreprise", value: "La Désirade Événements" },
-                      { label: "Numéro WhatsApp", value: "+242 064 000 000" },
-                      { label: "Email de contact", value: "contact@ladesirade.com" },
-                      { label: "Adresse", value: "Brazzaville, République du Congo" },
+                      { label: "Numéro WhatsApp",      value: "+242 064 000 000" },
+                      { label: "Email de contact",     value: "contact@ladesirade.com" },
+                      { label: "Adresse",              value: "Brazzaville, République du Congo" },
                     ].map((f) => (
                       <div key={f.label}>
                         <label className="text-xs text-gray-400 mb-1 block">{f.label}</label>
-                        <input
-                          defaultValue={f.value}
-                          className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3.5 text-sm text-off-white outline-none transition-colors"
-                        />
+                        <input defaultValue={f.value} className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3.5 text-sm text-off-white outline-none transition-colors" />
                       </div>
                     ))}
                   </div>
                 </div>
-
-                <div className="glass-card rounded-2xl p-5">
-                  <h2 className="font-semibold text-off-white mb-3">Bannière d&apos;annonce</h2>
-                  <textarea
-                    rows={2}
-                    placeholder="Ex: Fermé du 25 décembre au 2 janvier..."
-                    className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3.5 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors resize-none"
-                  />
-                  <div className="flex items-center gap-2 mt-2">
-                    <input type="checkbox" id="banner-active" className="accent-gold" />
-                    <label htmlFor="banner-active" className="text-xs text-gray-400">Activer la bannière</label>
-                  </div>
-                </div>
-
-                <button className="btn-gold px-6 py-3 rounded-full font-semibold">
-                  Sauvegarder les paramètres
+                <button
+                  onClick={() => { setSavedBanner(true); setTimeout(() => setSavedBanner(false), 2000); }}
+                  className="btn-gold px-6 py-3 rounded-full font-semibold flex items-center gap-2"
+                >
+                  {savedBanner ? <><Check className="w-4 h-4" /> Sauvegardé !</> : "Sauvegarder"}
                 </button>
               </div>
             </motion.div>
           )}
+
         </main>
       </div>
     </div>
