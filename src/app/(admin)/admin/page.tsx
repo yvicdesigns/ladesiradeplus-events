@@ -57,6 +57,22 @@ const tabs: { key: AdminTab; label: string; icon: React.ElementType }[] = [
   { key: "settings",   label: "Paramètres",  icon: Settings },
 ];
 
+function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onChange(); }}
+      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+        checked
+          ? "bg-gold border-gold"
+          : "border-gray-300 dark:border-gray-600 hover:border-gold bg-white dark:bg-charcoal-soft"
+      }`}
+    >
+      {checked && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+    </button>
+  );
+}
+
 function slugify(str: string) {
   return str.toLowerCase()
     .normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -939,11 +955,11 @@ export default function AdminPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-gold/10">
-                          <th className="px-4 py-3 w-8">
-                            <input type="checkbox"
+                          <th className="px-4 py-3 w-10">
+                            <Checkbox
                               checked={selectedArticles.size === filteredArticles.length && filteredArticles.length > 0}
                               onChange={() => toggleAllArticles(filteredArticles)}
-                              className="w-4 h-4 accent-gold rounded cursor-pointer" />
+                            />
                           </th>
                           <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium">Article</th>
                           <th className="text-left px-4 py-3 text-xs text-gray-400 font-medium hidden sm:table-cell">Catégorie</th>
@@ -958,10 +974,10 @@ export default function AdminPage() {
                           <tr key={article.id}
                             className={`border-b border-gold/5 transition-colors ${selectedArticles.has(article.id) ? "bg-gold/10" : "hover:bg-gold/5"}`}>
                             <td className="px-4 py-3">
-                              <input type="checkbox"
+                              <Checkbox
                                 checked={selectedArticles.has(article.id)}
                                 onChange={() => toggleArticle(article.id)}
-                                className="w-4 h-4 accent-gold rounded cursor-pointer" />
+                              />
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-3">
@@ -1099,11 +1115,11 @@ export default function AdminPage() {
 
                     {/* Tout sélectionner */}
                     <div className="flex items-center gap-2 mb-3">
-                      <input type="checkbox"
-                        checked={selectedCats.size === filtered.length}
+                      <Checkbox
+                        checked={selectedCats.size === filtered.length && filtered.length > 0}
                         onChange={() => toggleAllCats(filtered)}
-                        className="w-4 h-4 accent-gold rounded cursor-pointer" />
-                      <span className="text-xs text-gray-500">Tout sélectionner</span>
+                      />
+                      <span className="text-sm text-gray-500 font-medium">Tout sélectionner</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1115,11 +1131,10 @@ export default function AdminPage() {
                             className={`glass-card rounded-2xl p-4 hover-gold-border group transition-all ${isSelected ? "ring-2 ring-red-400/60" : ""}`}>
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex items-center gap-3">
-                                <input type="checkbox"
+                                <Checkbox
                                   checked={isSelected}
                                   onChange={() => toggleCat(cat.id)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="w-4 h-4 accent-gold rounded cursor-pointer flex-shrink-0" />
+                                />
                                 <span className="text-2xl">{cat.icon}</span>
                                 <div>
                                   <p className="text-off-white text-sm font-semibold">{cat.name_fr}</p>
