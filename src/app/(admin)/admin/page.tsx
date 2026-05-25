@@ -389,6 +389,12 @@ const EMPTY_CAT_FORM: CategoryForm = {
   slug: "", icon: "📦", sort_order: 0,
 };
 
+const ICON_LIST: Record<ServiceType, string[]> = {
+  decoration: ["🌸","🌹","🌺","💐","🌻","🌷","🪷","🎀","🎊","🎉","✨","🕯️","🏮","🪄","🎭","🎪","🎆","🎇","🪩","🌟","💫","🌿","🍃","🌴","🧡","🤍","💛","🩷"],
+  traiteur:   ["🍽️","🥂","🍾","🎂","🥗","🍰","🧁","🍫","🥘","🍷","🍹","🥩","🫖","☕","🍻","🥐","🍱","🍣","🥗","🎁"],
+  logistique: ["📦","🚐","🚛","🪑","🛋️","🏗️","🔧","📋","🎪","🏟️","🎠","🎡","🎢","⛺","🏕️","🎯","🗂️","📌","🔑","🛠️"],
+};
+
 function CategoryModal({
   open, category, onClose, onSaved,
 }: {
@@ -490,25 +496,36 @@ function CategoryModal({
               </select>
             </div>
 
-            <div className="grid grid-cols-4 gap-3">
-              <div className="col-span-1">
-                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Icône</label>
-                <input
-                  value={form.icon}
-                  onChange={(e) => setF("icon", e.target.value)}
-                  maxLength={4}
-                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-center text-off-white outline-none transition-colors"
-                />
+            <div>
+              <label className="text-xs text-gray-400 mb-2 block font-medium">Icône</label>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-charcoal-soft border border-gold/30 flex items-center justify-center text-xl flex-shrink-0">
+                  {form.icon}
+                </div>
+                <span className="text-xs text-gray-500">Choisissez dans la liste ou saisissez un emoji</span>
               </div>
-              <div className="col-span-3">
-                <label className="text-xs text-gray-400 mb-1.5 block font-medium">Nom français *</label>
-                <input
-                  value={form.name_fr}
-                  onChange={(e) => setF("name_fr", e.target.value)}
-                  placeholder="Arches & Structures"
-                  className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
-                />
+              <div className="grid grid-cols-10 gap-1 bg-charcoal-soft rounded-xl p-2 max-h-28 overflow-y-auto">
+                {(ICON_LIST[form.service] ?? ICON_LIST.decoration).map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setF("icon", emoji)}
+                    className={`w-8 h-8 rounded-lg text-lg flex items-center justify-center transition-all hover:bg-gold/20 ${form.icon === emoji ? "bg-gold/30 ring-1 ring-gold" : ""}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-400 mb-1.5 block font-medium">Nom français *</label>
+              <input
+                value={form.name_fr}
+                onChange={(e) => setF("name_fr", e.target.value)}
+                placeholder="Arches & Structures"
+                className="w-full bg-charcoal-soft border border-gold/20 focus:border-gold rounded-xl py-2.5 px-3 text-sm text-off-white placeholder:text-gray-500 outline-none transition-colors"
+              />
             </div>
 
             <div>
