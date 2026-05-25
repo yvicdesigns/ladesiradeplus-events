@@ -151,7 +151,7 @@ export default function PanierPage() {
                     <Image src={item.article.images[0]} alt={item.article.name_fr} fill className="object-cover" sizes="96px" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gold mb-1">{item.article.category_fr}</p>
+                    <p className="text-xs text-gold mb-1">{item.article.service}</p>
                     <h3 className="font-semibold text-off-white text-sm">{item.article.name_fr}</h3>
                     <p className="text-xs text-gray-400 mt-0.5">{formatPrice(item.article.price_per_day)} / jour</p>
                     <div className="flex items-center justify-between mt-3">

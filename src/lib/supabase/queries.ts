@@ -1,10 +1,10 @@
-import { createClient } from "./client";
-import type { ServiceType, OrderStatus } from "./types";
+import { createServerSupabaseClient } from "./server";
+import type { ServiceType, OrderStatus, ArticleWithCategory, Category } from "./types";
 
 // ─── Articles ────────────────────────────────────────────────
 
-export async function fetchArticlesByService(service: ServiceType) {
-  const supabase = createClient();
+export async function fetchArticlesByService(service: ServiceType): Promise<ArticleWithCategory[]> {
+  const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("articles")
     .select("*, categories(name_fr, name_en, icon)")
@@ -14,52 +14,77 @@ export async function fetchArticlesByService(service: ServiceType) {
     .order("created_at", { ascending: true });
 
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as ArticleWithCategory[];
 }
 
-export async function fetchFeaturedByService(service: ServiceType, limit = 4) {
-  const supabase = createClient();
+export async function fetchFeaturedByService(service: ServiceType, limit = 4): Promise<ArticleWithCategory[]> {
+  const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("articles")
-    .select("*")
+    .select("*, categories(name_fr, name_en, icon)")
     .eq("service", service)
     .eq("is_featured", true)
     .eq("is_active", true)
     .limit(limit);
 
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as ArticleWithCategory[];
 }
 
-export async function fetchArticleBySlug(slug: string) {
-  const supabase = createClient();
+export async function fetchAllByService(service: ServiceType): Promise<ArticleWithCategory[]> {
+  const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("articles")
-    .select("*, categories(name_fr, name_en, slug, service)")
+    .select("*, categories(name_fr, name_en, icon)")
+    .eq("service", service)
+    .eq("is_active", true)
+    .order("is_featured", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as ArticleWithCategory[];
+}
+
+export async function fetchArticleBySlug(slug: string): Promise<ArticleWithCategory | null> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("articles")
+    .select("*, categories(name_fr, name_en, icon)")
     .eq("slug", slug)
     .single();
 
-  if (error) throw error;
-  return data;
+  if (error) return null;
+  return data as ArticleWithCategory;
 }
 
-export async function fetchAllFeatured(limit = 6) {
-  const supabase = createClient();
+export async function fetchRelatedArticles(categoryId: string, excludeId: string, limit = 4): Promise<ArticleWithCategory[]> {
+  const supabase = createServerSupabaseClient();
+  const { data } = await supabase
+    .from("articles")
+    .select("*, categories(name_fr, name_en, icon)")
+    .eq("category_id", categoryId)
+    .eq("is_active", true)
+    .neq("id", excludeId)
+    .limit(limit);
+  return (data ?? []) as ArticleWithCategory[];
+}
+
+export async function fetchAllFeatured(limit = 6): Promise<ArticleWithCategory[]> {
+  const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("articles")
-    .select("*")
+    .select("*, categories(name_fr, name_en, icon)")
     .eq("is_featured", true)
     .eq("is_active", true)
     .limit(limit);
 
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as ArticleWithCategory[];
 }
 
 // ─── Categories ──────────────────────────────────────────────
 
-export async function fetchCategoriesByService(service: ServiceType) {
-  const supabase = createClient();
+export async function fetchCategoriesByService(service: ServiceType): Promise<Category[]> {
+  const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("categories")
     .select("*")
@@ -81,7 +106,7 @@ export async function createOrder(order: {
   total_amount: number;
   items: { article_id: string; quantity: number; unit_price: number }[];
 }) {
-  const supabase = createClient();
+  const supabase = createServerSupabaseClient();
 
   const { data: newOrder, error: orderError } = await supabase
     .from("orders")
@@ -118,7 +143,7 @@ export async function createOrder(order: {
 }
 
 export async function fetchAllOrders() {
-  const supabase = createClient();
+  const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("orders")
     .select("*, order_items(*, articles(name_fr))")
@@ -129,7 +154,7 @@ export async function fetchAllOrders() {
 }
 
 export async function updateOrderStatus(id: string, status: string) {
-  const supabase = createClient();
+  const supabase = createServerSupabaseClient();
   const { error } = await supabase
     .from("orders")
     .update({ status: status as OrderStatus })
@@ -141,14 +166,14 @@ export async function updateOrderStatus(id: string, status: string) {
 // ─── Settings ────────────────────────────────────────────────
 
 export async function fetchSettings() {
-  const supabase = createClient();
+  const supabase = createServerSupabaseClient();
   const { data, error } = await supabase.from("settings").select("*");
   if (error) return {};
   return Object.fromEntries((data ?? []).map((s) => [s.key, s.value]));
 }
 
 export async function updateSetting(key: string, value: string) {
-  const supabase = createClient();
+  const supabase = createServerSupabaseClient();
   const { error } = await supabase
     .from("settings")
     .upsert({ key, value });

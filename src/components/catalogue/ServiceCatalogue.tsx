@@ -5,13 +5,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { Search, SlidersHorizontal, X, Plus, Minus, Heart, ShoppingBag } from "lucide-react";
-import { Article, Category, ServiceInfo } from "@/data/mock";
+import { ArticleWithCategory, Category } from "@/lib/supabase/types";
+import { ServiceInfo } from "@/data/mock";
 import { useCartStore } from "@/store/cart";
 import { formatPrice } from "@/lib/utils";
 
 // ─── Article Card ────────────────────────────────────────────────────────────
 
-function ArticleCard({ article, accentColor }: { article: Article; accentColor: string }) {
+function ArticleCard({ article, accentColor }: { article: ArticleWithCategory; accentColor: string }) {
   const addItem = useCartStore((s) => s.addItem);
   const items = useCartStore((s) => s.items);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
@@ -61,7 +62,7 @@ function ArticleCard({ article, accentColor }: { article: Article; accentColor: 
 
       <div className="p-4">
         <p className={`text-xs uppercase tracking-wider mb-1 ${accentColor}`}>
-          {article.category_fr}
+          {article.categories?.name_fr ?? ""}
         </p>
         <Link href={`/article/${article.slug}`}>
           <h3 className="font-semibold text-off-white text-sm mb-1 line-clamp-2 hover:text-gold transition-colors">
@@ -118,7 +119,7 @@ function ArticleCard({ article, accentColor }: { article: Article; accentColor: 
 
 interface ServiceCatalogueProps {
   service: ServiceInfo;
-  articles: Article[];
+  articles: ArticleWithCategory[];
   categories: Category[];
   accentColor: string;
   accentBg: string;

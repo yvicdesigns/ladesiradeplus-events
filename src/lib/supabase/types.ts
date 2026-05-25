@@ -209,3 +209,8 @@ export type Article = Database["public"]["Tables"]["articles"]["Row"];
 export type Order = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderItem = Database["public"]["Tables"]["order_items"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+
+// Article with joined category (from select "*, categories(name_fr, name_en, icon)")
+export type ArticleWithCategory = Article & {
+  categories: { name_fr: string; name_en: string; icon: string } | null;
+};

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Article } from "@/data/mock";
+import { Article } from "@/lib/supabase/types";
 
 export interface CartItem {
   article: Article;

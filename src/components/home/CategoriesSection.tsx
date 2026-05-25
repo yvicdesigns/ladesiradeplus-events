@@ -1,19 +1,32 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, useInView } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { mockCategories } from "@/data/mock";
+import { Category } from "@/lib/supabase/types";
+import { createClient } from "@/lib/supabase/client";
 
 export function CategoriesSection() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("categories")
+      .select("*")
+      .order("sort_order")
+      .limit(12)
+      .then(({ data }) => setCategories(data ?? []));
+  }, []);
+
+  if (!categories.length) return null;
 
   return (
     <section ref={ref} className="py-20 md:py-28 bg-charcoal-deep">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
@@ -28,9 +41,8 @@ export function CategoriesSection() {
           </p>
         </motion.div>
 
-        {/* Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-5">
-          {mockCategories.map((cat, i) => (
+          {categories.map((cat, i) => (
             <motion.div
               key={cat.id}
               initial={{ opacity: 0, y: 30 }}
@@ -47,13 +59,11 @@ export function CategoriesSection() {
                 <h3 className="text-sm font-semibold text-off-white group-hover:text-gold transition-colors leading-tight">
                   {cat.name_fr}
                 </h3>
-                <p className="text-xs text-gray-500 mt-1">{cat.count} articles</p>
               </Link>
             </motion.div>
           ))}
         </div>
 
-        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}

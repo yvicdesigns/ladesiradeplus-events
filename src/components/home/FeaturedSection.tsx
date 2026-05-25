@@ -1,20 +1,33 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, useInView } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Plus } from "lucide-react";
-import { mockArticles } from "@/data/mock";
+import { ArticleWithCategory } from "@/lib/supabase/types";
+import { createClient } from "@/lib/supabase/client";
 import { useCartStore } from "@/store/cart";
 import { formatPrice } from "@/lib/utils";
-
-const featured = mockArticles.filter((a) => a.is_featured).slice(0, 4);
 
 export function FeaturedSection() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
   const addItem = useCartStore((s) => s.addItem);
+  const [featured, setFeatured] = useState<ArticleWithCategory[]>([]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("articles")
+      .select("*, categories(name_fr, name_en, icon)")
+      .eq("is_featured", true)
+      .eq("is_active", true)
+      .limit(4)
+      .then(({ data }) => setFeatured((data ?? []) as ArticleWithCategory[]));
+  }, []);
+
+  if (!featured.length) return null;
 
   return (
     <section ref={ref} className="py-20 md:py-28 bg-charcoal">
@@ -42,10 +55,9 @@ export function FeaturedSection() {
               transition={{ delay: i * 0.1, duration: 0.5 }}
               className="glass-card rounded-2xl overflow-hidden group hover-gold-border transition-all duration-300 hover:translate-y-[-4px]"
             >
-              {/* Image */}
               <div className="relative h-48 overflow-hidden">
                 <Image
-                  src={article.images[0]}
+                  src={article.images?.[0] ?? "/placeholder.jpg"}
                   alt={article.name_fr}
                   fill
                   className="object-cover group-hover:scale-110 transition-transform duration-500"
@@ -67,9 +79,10 @@ export function FeaturedSection() {
                 </div>
               </div>
 
-              {/* Content */}
               <div className="p-4">
-                <p className="text-xs text-gold uppercase tracking-wider mb-1">{article.category_fr}</p>
+                <p className="text-xs text-gold uppercase tracking-wider mb-1">
+                  {article.categories?.name_fr ?? ""}
+                </p>
                 <h3 className="font-semibold text-off-white text-sm mb-2 line-clamp-2">
                   {article.name_fr}
                 </h3>
