@@ -184,6 +184,14 @@ export function HeroSection() {
             <MessageCircle className="w-5 h-5" />
             Nous contacter sur WhatsApp
           </a>
+          <a
+            href="https://www.ladesiradeplus.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-8 py-4 rounded-full font-semibold text-base w-full sm:w-auto text-center flex items-center justify-center gap-2 bg-brand-red text-white hover:bg-red-600 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/30 hover:-translate-y-0.5"
+          >
+            🍽️ Commandez à manger
+          </a>
         </motion.div>
       </div>
 
