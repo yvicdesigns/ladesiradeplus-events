@@ -3,6 +3,19 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Only run auth checks for protected/auth routes — avoids timeout on every page
+  const needsAuth =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/mon-espace") ||
+    pathname === "/connexion" ||
+    pathname === "/inscription";
+
+  if (!needsAuth) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -30,9 +43,7 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
-
-  // Protect /admin — rôle lu depuis app_metadata JWT (pas de requête DB)
+  // Protect /admin
   if (pathname.startsWith("/admin")) {
     if (!user) {
       return NextResponse.redirect(
